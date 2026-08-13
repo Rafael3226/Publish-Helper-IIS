@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IIS Publish Helper</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">⇪</span>
+    <div>
+      <h1>IIS Publish Helper</h1>
+      <p class="sub">Build deployment scripts for IIS sites and app pools</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <select id="savedSelect" title="Saved configurations">
+      <option value="">— saved configurations —</option>
+    </select>
+    <button id="btnSave" class="btn">Save</button>
+    <button id="btnDelete" class="btn ghost">Delete</button>
+    <span class="sep"></span>
+    <button id="btnDefaults" class="btn ghost" title="Show the rarely-changed values">Defaults</button>
+    <span class="sep"></span>
+    <button id="btnPreset" class="btn ghost">Presets ▾</button>
+    <button id="btnImport" class="btn ghost">Import</button>
+    <button id="btnExportJson" class="btn ghost">Export</button>
+    <button id="btnNew" class="btn ghost">New</button>
+    <input type="file" id="fileImport" accept=".json,application/json" hidden>
+  </div>
+</header>
+
+<div id="presetMenu" class="menu" hidden></div>
+
+<div id="warningsCard" class="warnbar" hidden>
+  <span class="warnbar-title">Checks</span>
+  <ul id="warnings" class="warnings"></ul>
+</div>
+
+<main class="steps">
+
+  <!-- ---------------------------------------------- 1. settings -->
+  <details class="step" id="step-settings" open>
+    <summary class="step-head">
+      <span class="step-num">1</span>
+      <span class="step-title">Settings</span>
+      <span class="step-sum" id="sum-settings"></span>
+      <span class="chev" aria-hidden="true">▾</span>
+    </summary>
+    <div class="step-body">
+      <div class="grid">
+        <label>Deployment order
+          <select data-bind="deployMode">
+            <option value="batch">Stop all → back up all → copy all → start all</option>
+            <option value="sequential">One project at a time</option>
+          </select>
+        </label>
+      </div>
+      <div class="checks">
+        <label class="check"><input type="checkbox" data-bind="autoElevate"> Auto-elevate to Administrator</label>
+        <label class="check"><input type="checkbox" data-bind="pauseAtEnd"> Pause at the end</label>
+        <label class="check"><input type="checkbox" data-bind="logEnabled"> Write a log file</label>
+      </div>
+    </div>
+  </details>
+
+  <!-- ----------------------------------------------- 2. package -->
+  <details class="step" id="step-package">
+    <summary class="step-head">
+      <span class="step-num">2</span>
+      <span class="step-title">Release package</span>
+      <span class="step-sum" id="sum-package"></span>
+      <span class="chev" aria-hidden="true">▾</span>
+    </summary>
+    <div class="step-body">
+      <div class="checks">
+        <label class="check"><input type="checkbox" data-bind="useZip"> Deploy from a zip file</label>
+        <label class="check cond-zip"><input type="checkbox" data-bind="cleanExtract">
+          Empty the extract folder before extracting</label>
+      </div>
+      <div class="split cond-zip">
+        <div class="grid">
+          <label class="span-all">Zip file
+            <input data-bind="zipSource" placeholder="C:\Publish\APP_PUBLISH.zip">
+          </label>
+          <label class="span-all">Extract to
+            <input data-bind="extractDir" placeholder="C:\Publish\APP_PUBLISH">
+          </label>
+        </div>
+        <div class="tree-wrap">
+          <div class="tree-title">Expected zip structure</div>
+          <pre id="zipTree" class="tree"></pre>
+        </div>
+      </div>
+      <p class="cond-nozip note">Every project uses its own absolute source folder — no zip is unpacked.</p>
+    </div>
+  </details>
+
+  <!-- ---------------------------------------------- 3. projects -->
+  <details class="step" id="step-projects">
+    <summary class="step-head">
+      <span class="step-num">3</span>
+      <span class="step-title">Projects</span>
+      <span class="step-sum" id="sum-projects"></span>
+      <button id="btnExpandAll" class="btn tiny" title="Open every project">Expand</button>
+      <button id="btnCollapseAll" class="btn tiny" title="Close every project">Collapse</button>
+      <button id="btnAddProjectTop" class="btn tiny primary">+ Add</button>
+      <span class="chev" aria-hidden="true">▾</span>
+    </summary>
+    <div class="step-body">
+      <div id="projects"></div>
+      <button id="btnAddProject" class="btn add-wide">+ Add project</button>
+    </div>
+  </details>
+
+  <!-- ------------------------------------------------ 4. script -->
+  <details class="step" id="step-output">
+    <summary class="step-head">
+      <span class="step-num">4</span>
+      <span class="step-title">Generated script</span>
+      <span class="step-sum" id="sum-output"></span>
+      <button id="btnCopy" class="btn tiny">Copy</button>
+      <button id="btnDownload" class="btn tiny primary">Download .bat</button>
+      <span class="chev" aria-hidden="true">▾</span>
+    </summary>
+    <div class="step-body no-pad">
+      <pre id="output" class="output"></pre>
+    </div>
+  </details>
+
+  <!-- ------------------------------------------------- defaults -->
+  <details class="step defaults" id="step-defaults" hidden>
+    <summary class="step-head">
+      <span class="step-num" aria-hidden="true">⚙</span>
+      <span class="step-title">Defaults</span>
+      <span class="step-sum" id="sum-defaults"></span>
+      <span class="chev" aria-hidden="true">▾</span>
+    </summary>
+    <div class="step-body">
+      <p class="note">Values that rarely change. They are part of the configuration and are saved and
+        exported with it — this panel is simply out of the way until you need it.</p>
+
+      <div class="grid">
+        <label>File name
+          <div class="withsuffix">
+            <input data-bind="scriptName" placeholder="deploy-actfms">
+            <span class="suffix">.bat</span>
+          </div>
+        </label>
+        <label>Title shown while running
+          <input data-bind="title" placeholder="ACTFMS Deployment">
+        </label>
+        <label>Wait after stopping a pool <span class="hint-inline">seconds</span>
+          <input type="number" min="0" max="120" data-bind="stopWait">
+        </label>
+        <label class="cond-log">Log folder
+          <input data-bind="logDir" placeholder="C:\Publish\_logs">
+        </label>
+      </div>
+
+      <hr class="rule">
+
+      <div class="checks">
+        <label class="check"><input type="checkbox" data-bind="backupEnabled">
+          Back up the destination folders before replacing files</label>
+      </div>
+      <div class="grid">
+        <label class="cond-backup">Backup root folder
+          <input data-bind="backupRoot" placeholder="C:\Publish\_backups">
+        </label>
+        <label class="cond-backup">Keep only the newest N runs <span class="hint-inline">0 = keep all</span>
+          <input type="number" min="0" max="365" data-bind="backupKeep">
+        </label>
+        <label>Folder for the generated exclude lists
+          <input data-bind="excludeDir" placeholder="C:\Publish\_excludes">
+        </label>
+      </div>
+      <p class="note cond-backup">Each run writes
+        <code>&lt;backup root&gt;\&lt;timestamp&gt;\&lt;project&gt;\&lt;folder&gt;</code> using robocopy.</p>
+      <p class="note">The script writes one exclude list per project into the exclude folder at run time, so the
+        .bat file stays self-contained. <strong>That path must not contain spaces</strong> — xcopy cannot quote it.</p>
+    </div>
+  </details>
+
+</main>
+
+<template id="projectTemplate">
+  <details class="project" open>
+    <summary class="project-head">
+      <span class="pnum"></span>
+      <span class="pname"></span>
+      <span class="pmeta"></span>
+      <span class="pskip">skipped</span>
+      <span class="project-tools">
+        <button class="icon" data-act="up" title="Move up">↑</button>
+        <button class="icon" data-act="down" title="Move down">↓</button>
+        <button class="icon" data-act="dup" title="Duplicate">⧉</button>
+        <button class="icon danger" data-act="del" title="Remove">✕</button>
+      </span>
+      <span class="chev" aria-hidden="true">▾</span>
+    </summary>
+
+    <div class="project-body">
+      <div class="pcol">
+        <div class="grid">
+          <label>Project name
+            <input data-bind="name" placeholder="API">
+          </label>
+          <label>Origin
+            <select data-bind="sourceMode">
+              <option value="zip">Folder inside the zip</option>
+              <option value="abs">Absolute path</option>
+            </select>
+          </label>
+        </div>
+        <label>
+          <input data-bind="sourceSub" class="src-zip" placeholder="ACTFMS_API">
+          <input data-bind="sourceAbs" class="src-abs" placeholder="C:\builds\ACTFMS_API">
+        </label>
+        <p class="resolved">→ <span class="resolved-path"></span></p>
+
+        <div class="label-row">
+          <span class="lbl">Destination folders</span>
+          <button class="btn tiny" data-act="addTarget">+ destination</button>
+        </div>
+        <div class="target-list"></div>
+      </div>
+
+      <div class="pcol">
+        <div class="grid">
+          <label>Application pool
+            <input data-bind="pool" placeholder="MPSAPI">
+          </label>
+          <label>Site name <span class="hint-inline">optional</span>
+            <input data-bind="site" placeholder="MPSAPI">
+          </label>
+        </div>
+        <div class="checks">
+          <label class="check"><input type="checkbox" data-bind="enabled"> Include in the script</label>
+          <label class="check"><input type="checkbox" data-bind="backup"> Back up this project</label>
+        </div>
+        <label>Do not replace these files
+          <textarea data-bind="keepText" rows="4" placeholder="appsettings.json&#10;web.config"></textarea>
+        </label>
+        <p class="note">One entry per line, matched by xcopy against the full source path — <code>web.config</code>
+          also protects <code>sub\web.config</code>. Listed files are never copied, so a destination that does not
+          have the file yet will not get one.</p>
+      </div>
+    </div>
+  </details>
+</template>
+
+<template id="targetTemplate">
+  <div class="target">
+    <input data-bind="target" placeholder="C:\Team ACTFMS\Web services\MPSAPI">
+    <button class="icon danger" data-act="delTarget" title="Remove destination">✕</button>
+  </div>
+</template>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="js/presets.js"></script>
+<script src="js/generator.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

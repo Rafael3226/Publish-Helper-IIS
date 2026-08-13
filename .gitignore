@@ -1,0 +1,10 @@
+# generated deployment scripts and their configurations
+*.bat
+
+# editors and OS
+.vs/
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+*.swp
