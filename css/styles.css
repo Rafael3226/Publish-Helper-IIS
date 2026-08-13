@@ -12,6 +12,7 @@
   --warn: #e8b339;
   --radius: 8px;
   --mono: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  --wrap: 1700px;
 }
 
 @media (prefers-color-scheme: light) {
@@ -29,6 +30,9 @@
 }
 
 * { box-sizing: border-box; }
+
+/* an author `display` rule outranks the browser's [hidden] — put it back */
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -112,10 +116,43 @@ label > input, label > select, label > textarea, label > .withsuffix { margin-to
   color: var(--muted); background: var(--panel-2); border-radius: 0 6px 6px 0;
 }
 
+/* ---------------------------------------------------- layout */
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(440px, 44%);
+  align-items: start;
+  gap: 0 14px;
+  padding: 14px;
+  max-width: var(--wrap);
+  margin: 0 auto;
+}
+@media (max-width: 1180px) {
+  .workspace { grid-template-columns: 1fr; gap: 10px; }
+}
+
+/* two-column mode is an app shell: the window never scrolls, each column does */
+@media (min-width: 1181px) {
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; overflow: hidden; }
+  .topbar, .warnbar { flex: none; }
+  .workspace {
+    flex: 1; min-height: 0; overflow: hidden;
+    align-items: stretch;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .steps { min-height: 0; overflow-y: auto; padding-right: 6px; }
+  .script-col { min-height: 0; }
+  .pane { height: 100%; }
+}
+
 /* ---------------------------------------------------- steps */
-.steps { padding: 14px; display: flex; flex-direction: column; gap: 10px; max-width: 1500px; margin: 0 auto; }
+.steps {
+  display: flex; flex-direction: column; gap: 10px; min-width: 0;
+  container: steps / inline-size;   /* the cards inside react to the column, not the window */
+}
 
 .step {
+  flex: none;                   /* the column scrolls; cards must not be squeezed to fit it */
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -162,7 +199,7 @@ details[open] > summary > .chev { transform: rotate(180deg); }
 }
 
 .split { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
-@media (max-width: 980px) { .split { grid-template-columns: 1fr; } }
+@container steps (max-width: 780px) { .split { grid-template-columns: 1fr; } }
 
 /* ---------------------------------------------------- zip tree */
 .tree-wrap { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; }
@@ -173,11 +210,11 @@ details[open] > summary > .chev { transform: rotate(180deg); }
 .warnbar {
   display: flex; gap: 12px; align-items: baseline;
   margin: 14px auto -4px; padding: 9px 14px;
-  max-width: 1472px;                          /* lines up with .steps minus its padding */
+  max-width: calc(var(--wrap) - 28px);        /* lines up with .workspace minus its padding */
   background: var(--panel); border: 1px solid var(--warn); border-left-width: 3px;
   border-radius: var(--radius);
 }
-@media (max-width: 1500px) { .warnbar { margin-left: 14px; margin-right: 14px; } }
+@media (max-width: 1700px) { .warnbar { margin-left: 14px; margin-right: 14px; } }
 .warnbar-title { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--warn); flex: none; }
 .warnings { margin: 0; padding-left: 18px; font-size: 12px; columns: 2; }
 @media (max-width: 900px) { .warnings { columns: 1; } }
@@ -188,7 +225,7 @@ details[open] > summary > .chev { transform: rotate(180deg); }
 /* ---------------------------------------------------- projects */
 #projects { display: flex; flex-direction: column; gap: 8px; }
 
-.project { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.project { flex: none; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 .project.disabled { opacity: .6; }
 .project-head { padding: 9px 12px; }
 
@@ -210,7 +247,7 @@ details[open] > summary > .chev { transform: rotate(180deg); }
 .project-tools { display: flex; gap: 2px; margin-left: auto; flex: none; }
 
 .project-body { padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; animation: reveal .18s ease-out; }
-@media (max-width: 900px) { .project-body { grid-template-columns: 1fr; } }
+@container steps (max-width: 720px) { .project-body { grid-template-columns: 1fr; } }
 .pcol { min-width: 0; }
 
 .resolved { font-family: var(--mono); font-size: 12px; color: var(--muted); margin: -8px 0 12px; word-break: break-all; }
@@ -223,15 +260,31 @@ details[open] > summary > .chev { transform: rotate(180deg); }
 .project[data-mode="abs"] .src-zip { display: none; }
 
 /* ---------------------------------------------------- output */
+.script-col { min-width: 0; }
+
+/* the script pane never folds and never scrolls the page — only its own body scrolls */
+.pane { display: flex; flex-direction: column; }
+.pane .step-head.static { cursor: default; }
+.pane .step-head.static:hover { background: var(--head); }
+.pane .step-num { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pane > .step-head { border-bottom: 1px solid var(--line); }
+.pane > .step-body { min-height: 0; flex: 1; display: flex; animation: none; }
+
+@media (max-width: 1180px) {
+  .pane > .step-body { display: block; }
+}
+
 .output {
   font-family: var(--mono); font-size: 12px; line-height: 1.45;
-  background: var(--bg); margin: 0; padding: 14px;
+  background: var(--bg); margin: 0; padding: 14px; flex: 1; min-width: 0;
   overflow: auto; max-height: 65vh; white-space: pre; tab-size: 4;
 }
+.pane .output { max-height: none; }
+@media (max-width: 1180px) { .pane .output { max-height: 65vh; } }
 
 /* ---------------------------------------------------- menu + toast */
 .menu {
-  position: absolute; z-index: 40; background: var(--panel); border: 1px solid var(--line);
+  position: fixed; z-index: 40; background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 4px; min-width: 240px; box-shadow: 0 10px 28px rgba(0,0,0,.4);
 }
 .menu button {

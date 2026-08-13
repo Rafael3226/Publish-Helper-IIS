@@ -40,7 +40,9 @@
   <ul id="warnings" class="warnings"></ul>
 </div>
 
-<main class="steps">
+<main class="workspace">
+
+<div class="steps">
 
   <!-- ---------------------------------------------- 1. settings -->
   <details class="step" id="step-settings" open>
@@ -116,21 +118,6 @@
     </div>
   </details>
 
-  <!-- ------------------------------------------------ 4. script -->
-  <details class="step" id="step-output">
-    <summary class="step-head">
-      <span class="step-num">4</span>
-      <span class="step-title">Generated script</span>
-      <span class="step-sum" id="sum-output"></span>
-      <button id="btnCopy" class="btn tiny">Copy</button>
-      <button id="btnDownload" class="btn tiny primary">Download .bat</button>
-      <span class="chev" aria-hidden="true">▾</span>
-    </summary>
-    <div class="step-body no-pad">
-      <pre id="output" class="output"></pre>
-    </div>
-  </details>
-
   <!-- ------------------------------------------------- defaults -->
   <details class="step defaults" id="step-defaults" hidden>
     <summary class="step-head">
@@ -184,6 +171,24 @@
         .bat file stays self-contained. <strong>That path must not contain spaces</strong> — xcopy cannot quote it.</p>
     </div>
   </details>
+
+</div><!-- /.steps -->
+
+<!-- -------------------------------------------------- 4. script -->
+<aside class="script-col">
+  <section class="step pane" id="step-output">
+    <div class="step-head static">
+      <span class="step-num">4</span>
+      <span class="step-title">Generated script</span>
+      <span class="step-sum" id="sum-output"></span>
+      <button id="btnCopy" class="btn tiny">Copy</button>
+      <button id="btnDownload" class="btn tiny primary">Download .bat</button>
+    </div>
+    <div class="step-body no-pad">
+      <pre id="output" class="output"></pre>
+    </div>
+  </section>
+</aside>
 
 </main>
 

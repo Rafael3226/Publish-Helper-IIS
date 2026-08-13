@@ -12,7 +12,7 @@
   var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
 
   var uidSeed = 1;
-  var state = load() || Presets.list[0].build();
+  var state = load() || migrate(Presets.list[0].build());
   var ui = loadUi();
   var previewTimer = null;
 
@@ -33,6 +33,8 @@
   function loadUi() {
     try {
       var raw = JSON.parse(localStorage.getItem(STORE_UI) || '{}');
+      /* the script is its own always-open column now, never the accordion's active step */
+      if (raw.activeStep === 'step-output') raw.activeStep = 'step-settings';
       return {
         activeStep: raw.activeStep === undefined ? 'step-settings' : raw.activeStep,
         showDefaults: !!raw.showDefaults,
@@ -69,7 +71,15 @@
       return p;
     });
     if (!cfg.projects.length) cfg.projects = [Presets.project({ uid: 'p' + (uidSeed++) })];
+    normalizeSources(cfg);
     return cfg;
+  }
+
+  /* with no zip there is no folder inside one to point at, so every origin is absolute */
+  function normalizeSources(cfg) {
+    cfg = cfg || state;
+    if (cfg.useZip) return;
+    (cfg.projects || []).forEach(function (p) { p.sourceMode = 'abs'; });
   }
 
   function newProject(over) {
@@ -113,18 +123,16 @@
     closingOthers = false;
   }
 
-  /* an accordion moves the page around, so bring the new step into view */
+  /* an accordion moves things around, so bring the new step into view.
+     scrollIntoView walks up to whichever ancestor actually scrolls — the steps
+     column in two-column mode, the window when the layout is stacked. */
   function revealStep(el) {
-    if (!el.getBoundingClientRect || !window.scrollTo) return;
+    if (!el.scrollIntoView) return;
     var soon = window.requestAnimationFrame ? window.requestAnimationFrame.bind(window)
                                             : function (fn) { setTimeout(fn, 16); };
     soon(function () {
-      try {
-        var top = el.getBoundingClientRect().top;
-        var bar = $('.topbar') ? $('.topbar').offsetHeight : 0;
-        if (top >= bar + 4 && top < window.innerHeight - 60) return;
-        window.scrollTo({ top: window.scrollY + top - bar - 10, behavior: 'smooth' });
-      } catch (e) { /* no smooth scrolling here */ }
+      try { el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+      catch (e) { el.scrollIntoView(); }
     });
   }
 
@@ -216,7 +224,7 @@
     card.classList.toggle('disabled', p.enabled === false);
 
     var sel = $('[data-bind="sourceMode"]', card);
-    sel.value = p.sourceMode || 'zip';
+    sel.value = mode;                       /* never shows a zip origin while there is no zip */
     sel.disabled = !state.useZip;
 
     $('.resolved-path', card).textContent = resolvedSource(p) || '(no origin set)';
@@ -354,7 +362,7 @@
     var card = el.closest('.project');
     if (!card) {
       state[el.dataset.bind] = readValue(el);
-      if (el.dataset.bind === 'useZip') renderProjects();
+      if (el.dataset.bind === 'useZip') { normalizeSources(); renderProjects(); }
       touched();
       return;
     }
@@ -582,9 +590,9 @@
 
   $('#btnPreset').addEventListener('click', function (ev) {
     ev.stopPropagation();
-    var rect = this.getBoundingClientRect();
-    menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
-    menu.style.left = Math.max(8, rect.left + window.scrollX - 60) + 'px';
+    var rect = this.getBoundingClientRect();          /* the menu is fixed, so no scroll offset */
+    menu.style.top = (rect.bottom + 4) + 'px';
+    menu.style.left = Math.max(8, rect.left - 60) + 'px';
     menu.hidden = !menu.hidden;
   });
 
