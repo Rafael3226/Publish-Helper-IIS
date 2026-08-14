@@ -16,24 +16,42 @@
       <p class="sub">Build deployment scripts for IIS sites and app pools</p>
     </div>
   </div>
-  <div class="topbar-actions">
-    <select id="savedSelect" title="Saved configurations">
-      <option value="">— saved configurations —</option>
-    </select>
-    <button id="btnSave" class="btn">Save</button>
-    <button id="btnDelete" class="btn ghost">Delete</button>
-    <span class="sep"></span>
-    <button id="btnDefaults" class="btn ghost" title="Show the rarely-changed values">Defaults</button>
-    <span class="sep"></span>
-    <button id="btnPreset" class="btn ghost">Presets ▾</button>
-    <button id="btnImport" class="btn ghost">Import</button>
-    <button id="btnExportJson" class="btn ghost">Export</button>
-    <button id="btnNew" class="btn ghost">New</button>
-    <input type="file" id="fileImport" accept=".json,application/json" hidden>
-  </div>
 </header>
 
+<div class="shell">
+
+<aside class="sidebar">
+  <nav class="side-actions">
+    <div class="side-group">
+      <span class="side-label">Configuration</span>
+      <select id="savedSelect" title="Saved configurations">
+        <option value="">— saved configurations —</option>
+      </select>
+      <div class="side-row">
+        <button id="btnSave" class="btn">Save</button>
+        <button id="btnDelete" class="btn ghost">Delete</button>
+      </div>
+    </div>
+
+    <div class="side-group">
+      <span class="side-label">Panels</span>
+      <button id="btnDefaults" class="btn ghost side-btn" title="Show the rarely-changed values">Defaults</button>
+    </div>
+
+    <div class="side-group">
+      <span class="side-label">Configuration file</span>
+      <button id="btnPreset" class="btn ghost side-btn">Presets ▸</button>
+      <button id="btnImport" class="btn ghost side-btn">Import</button>
+      <button id="btnExportJson" class="btn ghost side-btn">Export</button>
+      <button id="btnNew" class="btn ghost side-btn">New</button>
+      <input type="file" id="fileImport" accept=".json,application/json" hidden>
+    </div>
+  </nav>
+</aside>
+
 <div id="presetMenu" class="menu" hidden></div>
+
+<div class="content">
 
 <div id="warningsCard" class="warnbar" hidden>
   <span class="warnbar-title">Checks</span>
@@ -192,6 +210,9 @@
 </aside>
 
 </main>
+
+</div><!-- /.content -->
+</div><!-- /.shell -->
 
 <template id="projectTemplate">
   <details class="project" open>

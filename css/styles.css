@@ -13,6 +13,7 @@
   --radius: 8px;
   --mono: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
   --wrap: 1700px;
+  --side: 220px;
 }
 
 @media (prefers-color-scheme: light) {
@@ -46,22 +47,62 @@ code { font-family: var(--mono); font-size: .92em; background: var(--panel-2); p
 
 /* ---------------------------------------------------- topbar */
 .topbar {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: 10px 16px;
+  display: flex; align-items: center;
+  padding: 10px 0 10px var(--side);   /* clear the rail, so the brand sits over the content column */
   background: var(--panel);
   border-bottom: 1px solid var(--line);
-  position: sticky; top: 0; z-index: 30;
-  flex-wrap: wrap;
+  z-index: 30;
 }
-.brand { display: flex; align-items: center; gap: 10px; }
+/* same box as .workspace: centred, capped at --wrap, 14px gutter — so both start on one x */
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; max-width: var(--wrap); margin: 0 auto; padding: 0 14px;
+}
 .logo {
-  width: 30px; height: 30px; display: grid; place-items: center;
+  width: 30px; height: 30px; flex: none; display: grid; place-items: center;
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: #fff; border-radius: var(--radius); font-size: 16px;
 }
 .sub { margin: 0; font-size: 12px; color: var(--muted); }
-.topbar-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+
+/* ---------------------------------------------------- sidebar */
+.shell { display: flex; align-items: stretch; }
+
+.sidebar {
+  flex: none; width: var(--side);
+  padding: 14px;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+
+.side-actions { display: flex; flex-direction: column; gap: 18px; }
+.side-group { display: flex; flex-direction: column; gap: 6px; }
+.side-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+}
+.side-row { display: flex; gap: 6px; }
+.side-row .btn { flex: 1; }
+.side-btn { text-align: left; }
+
+.content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* narrow windows: the rail folds back into a bar under the title */
+@media (max-width: 900px) {
+  .topbar { padding-left: 0; }        /* no rail to clear once it folds to the top */
+  .shell { flex-direction: column; min-height: 0; }
+  .sidebar {
+    width: auto; padding: 10px 14px;
+    border-right: none; border-bottom: 1px solid var(--line);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+    overflow: visible;
+  }
+  .side-actions { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 10px 18px; }
+  .side-group { flex-direction: row; align-items: center; }
+  .side-label { display: none; }
+  .side-btn { text-align: center; }
+  #savedSelect { width: 190px; }
+}
 
 /* ---------------------------------------------------- controls */
 .btn {
@@ -95,7 +136,6 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
 textarea { font-family: var(--mono); resize: vertical; }
 select { cursor: pointer; }
-#savedSelect { width: 190px; }
 
 label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 12px; }
 label > input, label > select, label > textarea, label > .withsuffix { margin-top: 3px; }
@@ -126,15 +166,19 @@ label > input, label > select, label > textarea, label > .withsuffix { margin-to
   max-width: var(--wrap);
   margin: 0 auto;
 }
-@media (max-width: 1180px) {
+/* the sidebar eats 220px, so the script column needs a wider window than the content alone */
+@media (max-width: 1400px) {
   .workspace { grid-template-columns: 1fr; gap: 10px; }
 }
 
 /* two-column mode is an app shell: the window never scrolls, each column does */
-@media (min-width: 1181px) {
+@media (min-width: 1401px) {
   html, body { height: 100%; }
   body { display: flex; flex-direction: column; overflow: hidden; }
-  .topbar, .warnbar { flex: none; }
+  .topbar { flex: none; }
+  .shell { flex: 1; min-height: 0; }
+  .content { min-height: 0; overflow: hidden; }
+  .warnbar { flex: none; }
   .workspace {
     flex: 1; min-height: 0; overflow: hidden;
     align-items: stretch;
@@ -210,11 +254,11 @@ details[open] > summary > .chev { transform: rotate(180deg); }
 .warnbar {
   display: flex; gap: 12px; align-items: baseline;
   margin: 14px auto -4px; padding: 9px 14px;
+  width: calc(100% - 28px);
   max-width: calc(var(--wrap) - 28px);        /* lines up with .workspace minus its padding */
   background: var(--panel); border: 1px solid var(--warn); border-left-width: 3px;
   border-radius: var(--radius);
 }
-@media (max-width: 1700px) { .warnbar { margin-left: 14px; margin-right: 14px; } }
 .warnbar-title { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--warn); flex: none; }
 .warnings { margin: 0; padding-left: 18px; font-size: 12px; columns: 2; }
 @media (max-width: 900px) { .warnings { columns: 1; } }
@@ -270,7 +314,7 @@ details[open] > summary > .chev { transform: rotate(180deg); }
 .pane > .step-head { border-bottom: 1px solid var(--line); }
 .pane > .step-body { min-height: 0; flex: 1; display: flex; animation: none; }
 
-@media (max-width: 1180px) {
+@media (max-width: 1400px) {
   .pane > .step-body { display: block; }
 }
 
@@ -280,7 +324,7 @@ details[open] > summary > .chev { transform: rotate(180deg); }
   overflow: auto; max-height: 65vh; white-space: pre; tab-size: 4;
 }
 .pane .output { max-height: none; }
-@media (max-width: 1180px) { .pane .output { max-height: 65vh; } }
+@media (max-width: 1400px) { .pane .output { max-height: 65vh; } }
 
 /* ---------------------------------------------------- menu + toast */
 .menu {

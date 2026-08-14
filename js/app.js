@@ -590,10 +590,18 @@
 
   $('#btnPreset').addEventListener('click', function (ev) {
     ev.stopPropagation();
+    if (!menu.hidden) { menu.hidden = true; return; }
+
+    menu.hidden = false;                              /* unhide first so it can be measured */
     var rect = this.getBoundingClientRect();          /* the menu is fixed, so no scroll offset */
-    menu.style.top = (rect.bottom + 4) + 'px';
-    menu.style.left = Math.max(8, rect.left - 60) + 'px';
-    menu.hidden = !menu.hidden;
+    if (window.matchMedia('(max-width: 900px)').matches) {
+      menu.style.top = (rect.bottom + 4) + 'px';      /* the sidebar is a bar across the top */
+      menu.style.left = Math.max(8, rect.left - 60) + 'px';
+    } else {
+      var room = window.innerHeight - menu.offsetHeight - 8;
+      menu.style.top = Math.max(8, Math.min(rect.top, room)) + 'px';
+      menu.style.left = (rect.right + 8) + 'px';      /* flies out beside the sidebar */
+    }
   });
 
   document.addEventListener('click', function () { menu.hidden = true; });
