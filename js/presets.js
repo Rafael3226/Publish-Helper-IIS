@@ -13,7 +13,7 @@
       scriptName: 'deploy',
       title: 'Deployment',
       deployMode: 'batch',
-      autoElevate: true,
+      autoElevate: false,
       pauseAtEnd: true,
       stopWait: 3,
       useZip: true,

@@ -262,22 +262,22 @@
   /* ---------------------------------------------------------------- */
   function renderSummaries(script) {
     var name = BatGenerator.slug(state.scriptName || state.title) + '.bat';
-    var flags = [state.deployMode === 'sequential' ? 'one project at a time' : 'all together'];
-    if (state.autoElevate) flags.push('auto-elevate');
-    if (state.pauseAtEnd) flags.push('pause');
-    flags.push(state.logEnabled ? 'logged' : 'no log');
-    $('#sum-settings').textContent = flags.join('  ·  ');
+    $('#sum-settings').textContent = state.deployMode === 'sequential'
+      ? 'one project at a time'
+      : 'all together';
 
     $('#sum-package').textContent = state.useZip
       ? ((state.zipSource || '').split(/[\\/]/).pop() || 'no zip chosen') + '  →  ' + (state.extractDir || '?')
       : 'no zip, absolute source folders';
 
-    $('#sum-defaults').textContent = [
-      name,
-      state.backupEnabled
-        ? 'backups ' + (state.backupKeep > 0 ? 'keep ' + state.backupKeep : 'keep all')
-        : 'backups off'
-    ].join('  ·  ');
+    var flags = [name];
+    if (state.autoElevate) flags.push('auto-elevate');
+    if (state.pauseAtEnd) flags.push('pause');
+    flags.push(state.logEnabled ? 'logged' : 'no log');
+    flags.push(state.backupEnabled
+      ? 'backups ' + (state.backupKeep > 0 ? 'keep ' + state.backupKeep : 'keep all')
+      : 'backups off');
+    $('#sum-defaults').textContent = flags.join('  ·  ');
 
     var total = state.projects.length;
     var on = state.projects.filter(function (p) { return p.enabled !== false; }).length;

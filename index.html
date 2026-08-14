@@ -61,11 +61,6 @@
           </select>
         </label>
       </div>
-      <div class="checks">
-        <label class="check"><input type="checkbox" data-bind="autoElevate"> Auto-elevate to Administrator</label>
-        <label class="check"><input type="checkbox" data-bind="pauseAtEnd"> Pause at the end</label>
-        <label class="check"><input type="checkbox" data-bind="logEnabled"> Write a log file</label>
-      </div>
     </div>
   </details>
 
@@ -129,6 +124,12 @@
     <div class="step-body">
       <p class="note">Values that rarely change. They are part of the configuration and are saved and
         exported with it — this panel is simply out of the way until you need it.</p>
+
+      <div class="checks">
+        <label class="check"><input type="checkbox" data-bind="autoElevate"> Auto-elevate to Administrator</label>
+        <label class="check"><input type="checkbox" data-bind="pauseAtEnd"> Pause at the end</label>
+        <label class="check"><input type="checkbox" data-bind="logEnabled"> Write a log file</label>
+      </div>
 
       <div class="grid">
         <label>File name
