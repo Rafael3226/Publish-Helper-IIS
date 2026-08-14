@@ -69,9 +69,9 @@ set "P1_KEEP3=web.config"
 
 Two orders are available:
 
-- **Stop all → back up all → copy all → start all** — the whole set goes down together. This is
-  what the existing hand-written scripts do, and the right choice when the applications share
-  files or call each other during start-up.
+- **All projects at a time** — stop all, back up all, copy all, start all: the whole set goes
+  down together. This is what the existing hand-written scripts do, and the right choice when
+  the applications share files or call each other during start-up.
 - **One project at a time** — each project is down only for its own copy.
 
 Extra behaviour worth knowing:
