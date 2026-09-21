@@ -274,6 +274,7 @@
     if (state.autoElevate) flags.push('auto-elevate');
     if (state.pauseAtEnd) flags.push('pause');
     flags.push(state.logEnabled ? 'logged' : 'no log');
+    if (state.useZip) flags.push('unzip with ' + (state.unzipMethod || 'cscript'));
     flags.push(state.backupEnabled
       ? 'backups ' + (state.backupKeep > 0 ? 'keep ' + state.backupKeep : 'keep all')
       : 'backups off');

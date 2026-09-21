@@ -3,7 +3,7 @@
  * deployment script for IIS.
  *
  * The generated script follows the layout that is known to work on the
- * ACTS servers: config block on top, tar for unzipping, appcmd for the
+ * ACTS servers: config block on top, cscript/tar/7-Zip for unzipping, appcmd for the
  * application pools, xcopy /EXCLUDE for the "do not replace" list and
  * robocopy for the backups.
  * ------------------------------------------------------------------ */
@@ -54,6 +54,13 @@
     return (p.targets || []).map(trimSlash).filter(Boolean);
   }
 
+  /* cscript is the default: Shell.Application is on every Windows, tar is not */
+  var UNZIP_METHODS = ['cscript', 'tar', '7zip'];
+  function unzipMethod(cfg) {
+    var m = t(cfg.unzipMethod).toLowerCase();
+    return UNZIP_METHODS.indexOf(m) === -1 ? 'cscript' : m;
+  }
+
   /* ---------------------------------------------------------------- */
   /* configuration block                                              */
   /* ---------------------------------------------------------------- */
@@ -85,6 +92,14 @@
     L.push(setv('EXTRACT_DIR', trimSlash(cfg.extractDir)));
     L.push('REM 1 = delete the extract folder before extracting (recommended)');
     L.push(setv('CLEAN_EXTRACT', bool(cfg.cleanExtract)));
+    L.push('REM how the zip is opened:');
+    L.push('REM   cscript = Windows Script Host, works on every Windows');
+    L.push('REM   tar     = only on Windows 10 1803 / Server 2019 and newer');
+    L.push('REM   7zip    = 7-Zip, set SEVENZIP_EXE below');
+    L.push(setv('UNZIP_METHOD', unzipMethod(cfg)));
+    if (unzipMethod(cfg) === '7zip') {
+      L.push(setv('SEVENZIP_EXE', t(cfg.sevenZipExe) || 'C:\\Program Files\\7-Zip\\7z.exe'));
+    }
     L.push('');
 
     L.push('REM ---------- Backup ----------');
@@ -353,6 +368,86 @@
   }
 
   /* ---------------------------------------------------------------- */
+  /* the unzip helper the cscript method writes at run time            */
+  /* ---------------------------------------------------------------- */
+  /* Written flat, without indentation or blank lines: every line goes
+     through  echo  in the .bat, which would eat the first space and
+     turn an empty line into "ECHO is on". */
+  function unzipVbs() {
+    return [
+      'Option Explicit',
+      'Dim fso, sh, args, zipPath, dstPath, src, dst, want, waited, maxWait, stable, prev, cur, gap, told',
+      'Set args = WScript.Arguments',
+      'If args.Count < 2 Then WScript.Echo "      usage: unzip.vbs zipfile destination" : WScript.Quit 2',
+      'Set fso = CreateObject("Scripting.FileSystemObject")',
+      'zipPath = args(0)',
+      'dstPath = args(1)',
+      'If Not fso.FileExists(zipPath) Then WScript.Echo "      zip not found: " & zipPath : WScript.Quit 3',
+      'If Not fso.FolderExists(dstPath) Then fso.CreateFolder dstPath',
+      'Set sh = CreateObject("Shell.Application")',
+      'Set src = sh.NameSpace(zipPath)',
+      'If src Is Nothing Then WScript.Echo "      this file cannot be opened as a zip: " & zipPath : WScript.Quit 4',
+      'Set dst = sh.NameSpace(dstPath)',
+      'If dst Is Nothing Then WScript.Echo "      cannot open the destination: " & dstPath : WScript.Quit 5',
+      'want = src.Items().Count',
+      'If want = 0 Then WScript.Echo "      the zip is empty" : WScript.Quit 6',
+      "' 16 = yes to all, 4 = no progress window, 512 = no confirmation, 1024 = no error popup",
+      'dst.CopyHere src.Items(), 16 + 4 + 512 + 1024',
+      "' CopyHere returns at once, so wait until the destination stops growing.",
+      "' Each check walks the whole extract folder, so the gap between checks",
+      "' widens as the unpack goes on - on a big package a one second poll costs",
+      "' more than it is worth and competes with the copy for the disk.",
+      'maxWait = 1800',
+      'waited = 0',
+      'stable = 0',
+      'gap = 2',
+      'told = 0',
+      'prev = ""',
+      'Do',
+      'WScript.Sleep gap * 1000',
+      'waited = waited + gap',
+      'If waited > 30 Then gap = 5',
+      'If waited > 120 Then gap = 10',
+      'cur = Snapshot(dstPath)',
+      'If waited >= 60 And Split(cur, " ")(0) = "0" Then WScript.Echo "      nothing was extracted" : WScript.Quit 8',
+      'If cur = prev Then stable = stable + 1 Else stable = 0',
+      'prev = cur',
+      'If waited - told >= 30 And stable = 0 Then',
+      'WScript.Echo "      " & Split(cur, " ")(0) & " files after " & waited & " seconds"',
+      'told = waited',
+      'End If',
+      'Loop Until (stable >= 3 And dst.Items().Count >= want) Or waited >= maxWait',
+      'If waited >= maxWait Then WScript.Echo "      gave up waiting after " & maxWait & " seconds" : WScript.Quit 7',
+      'WScript.Echo "      " & Split(prev, " ")(0) & " files unpacked"',
+      'WScript.Quit 0',
+      'Function Snapshot(folderPath)',
+      'Dim n, s',
+      'n = 0',
+      's = 0',
+      'Walk folderPath, n, s',
+      'Snapshot = n & " " & s',
+      'End Function',
+      'Sub Walk(folderPath, n, s)',
+      'Dim f, fl, sf',
+      'On Error Resume Next',
+      'Set f = fso.GetFolder(folderPath)',
+      'If Err.Number <> 0 Then',
+      'Err.Clear',
+      'Exit Sub',
+      'End If',
+      'For Each fl In f.Files',
+      'n = n + 1',
+      's = s + fl.Size',
+      'Next',
+      'For Each sf In f.SubFolders',
+      'Walk sf.Path, n, s',
+      'Next',
+      'On Error GoTo 0',
+      'End Sub'
+    ];
+  }
+
+  /* ---------------------------------------------------------------- */
   /* subroutines                                                      */
   /* ---------------------------------------------------------------- */
   function subroutines(L) {
@@ -384,13 +479,77 @@
     L.push(')');
     L.push('if not exist "%EXTRACT_DIR%" mkdir "%EXTRACT_DIR%"');
     L.push('echo   Extracting %ZIP_SOURCE%');
-    L.push('tar -xf "%ZIP_SOURCE%" -C "%EXTRACT_DIR%"');
-    L.push('if !errorlevel! neq 0 (');
+    L.push('echo   using %UNZIP_METHOD%');
+    L.push('set "_UZRC=9"');
+    L.push('if /I "%UNZIP_METHOD%"=="cscript" (');
+    L.push('    call :UnzipVbs');
+    L.push('    set "_UZRC=!errorlevel!"');
+    L.push(')');
+    L.push('if /I "%UNZIP_METHOD%"=="tar" (');
+    L.push('    call :UnzipTar');
+    L.push('    set "_UZRC=!errorlevel!"');
+    L.push(')');
+    L.push('if /I "%UNZIP_METHOD%"=="7zip" (');
+    L.push('    call :Unzip7z');
+    L.push('    set "_UZRC=!errorlevel!"');
+    L.push(')');
+    L.push('if "!_UZRC!"=="9" (');
+    L.push('    echo   ERROR: UNZIP_METHOD is "%UNZIP_METHOD%" - use cscript, tar or 7zip.');
+    L.push('    exit /b 1');
+    L.push(')');
+    L.push('if not "!_UZRC!"=="0" (');
     L.push('    echo   ERROR: extracting the zip failed.');
     L.push('    exit /b 1');
     L.push(')');
     L.push('echo   Extracted to %EXTRACT_DIR%');
     L.push('exit /b 0');
+    L.push('');
+
+    /* ---- Unzip: tar ---- */
+    L.push(':UnzipTar');
+    L.push('where tar >nul 2>&1');
+    L.push('if !errorlevel! neq 0 (');
+    L.push('    echo      tar is not installed on this machine.');
+    L.push('    exit /b 1');
+    L.push(')');
+    L.push('tar -xf "%ZIP_SOURCE%" -C "%EXTRACT_DIR%"');
+    L.push('exit /b !errorlevel!');
+    L.push('');
+
+    /* ---- Unzip: 7-Zip ---- */
+    L.push(':Unzip7z');
+    L.push('if not exist "%SEVENZIP_EXE%" (');
+    L.push('    echo      7-Zip not found: %SEVENZIP_EXE%');
+    L.push('    exit /b 1');
+    L.push(')');
+    L.push('"%SEVENZIP_EXE%" x "%ZIP_SOURCE%" -o"%EXTRACT_DIR%" -y');
+    L.push('exit /b !errorlevel!');
+    L.push('');
+
+    /* ---- Unzip: Windows Script Host ---- */
+    L.push(':UnzipVbs');
+    L.push('if not exist "%EXCLUDE_DIR%" mkdir "%EXCLUDE_DIR%" >nul 2>&1');
+    L.push('set "_VBS=%EXCLUDE_DIR%\\unzip.vbs"');
+    L.push('call :WriteUnzipVbs');
+    L.push('cscript //nologo "!_VBS!" "%ZIP_SOURCE%" "%EXTRACT_DIR%"');
+    L.push('set "_VBSRC=!errorlevel!"');
+    L.push('if "!_VBSRC!"=="0" (');
+    L.push('    del "!_VBS!" >nul 2>&1');
+    L.push(') else (');
+    L.push('    echo      the helper script was left at !_VBS!');
+    L.push(')');
+    L.push('exit /b !_VBSRC!');
+    L.push('');
+
+    L.push(':WriteUnzipVbs');
+    L.push('REM Shell.Application copies in the background, so the script waits for the');
+    L.push('REM destination to stop growing before it reports success.');
+    L.push('setlocal disabledelayedexpansion');
+    unzipVbs().forEach(function (line, i) {
+      L.push((i === 0 ? '> ' : '>>') + '"%EXCLUDE_DIR%\\unzip.vbs" echo ' + escEcho(line));
+    });
+    L.push('endlocal');
+    L.push('goto :EOF');
     L.push('');
 
     /* ---- StopProject ---- */
@@ -558,8 +717,14 @@
     if (cfg.useZip) {
       if (!t(cfg.zipSource)) err('No zip file configured.');
       if (!t(cfg.extractDir)) err('No extract folder configured.');
-      if (/^\\\\/.test(t(cfg.zipSource))) warn('The zip sits on a UNC share — tar cannot always read those. Point this at a local copy if the extract step fails.');
+      if (/^\\\\/.test(t(cfg.zipSource))) warn('The zip sits on a UNC share — an elevated session does not always have credentials for one. Point this at a local copy if the extract step fails.');
       if (/^\\\\/.test(t(cfg.extractDir))) warn('The extract folder is a UNC path — extract to a local drive instead.');
+      if (unzipMethod(cfg) === 'cscript' && !cfg.cleanExtract) {
+        warn('cscript unpacks through Windows Explorer, which may stop and ask before it replaces a file. Switch on "Empty the extract folder before extracting" so it never has to.');
+      }
+      if (unzipMethod(cfg) === 'tar') {
+        warn('tar only exists on Windows 10 1803 / Server 2019 and newer. Run  where tar  on the target server before you rely on it.');
+      }
     }
     if (cfg.backupEnabled && !t(cfg.backupRoot)) err('Backups are on but no backup root is set.');
     if (cfg.logEnabled && !t(cfg.logDir)) err('Logging is on but no log folder is set.');

@@ -93,8 +93,6 @@
     <div class="step-body">
       <div class="checks">
         <label class="check"><input type="checkbox" data-bind="useZip"> Deploy from a zip file</label>
-        <label class="check cond-zip"><input type="checkbox" data-bind="cleanExtract">
-          Empty the extract folder before extracting</label>
       </div>
       <div class="split cond-zip">
         <div class="grid">
@@ -147,6 +145,8 @@
         <label class="check"><input type="checkbox" data-bind="autoElevate"> Auto-elevate to Administrator</label>
         <label class="check"><input type="checkbox" data-bind="pauseAtEnd"> Pause at the end</label>
         <label class="check"><input type="checkbox" data-bind="logEnabled"> Write a log file</label>
+        <label class="check cond-zip"><input type="checkbox" data-bind="cleanExtract">
+          Empty the extract folder before extracting</label>
       </div>
 
       <div class="grid">
@@ -161,6 +161,13 @@
         </label>
         <label>Wait after stopping a pool <span class="hint-inline">seconds</span>
           <input type="number" min="0" max="120" data-bind="stopWait">
+        </label>
+        <label class="cond-zip">How the zip is unpacked
+          <select data-bind="unzipMethod">
+            <option value="cscript">cscript — Windows Script Host</option>
+            <option value="tar">tar — Windows 10 1803 / Server 2019 and newer</option>
+            <option value="7zip">7-Zip</option>
+          </select>
         </label>
         <label class="cond-log">Log folder
           <input data-bind="logDir" placeholder="C:\Publish\_logs">

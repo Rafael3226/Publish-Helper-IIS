@@ -20,6 +20,7 @@
       zipSource: '',
       extractDir: '',
       cleanExtract: true,
+      unzipMethod: 'cscript',
       backupEnabled: true,
       backupRoot: 'C:\\Publish\\_backups',
       backupKeep: 0,

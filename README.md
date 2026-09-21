@@ -60,7 +60,7 @@ set "P1_KEEP3=web.config"
 
 | Step | Action |
 |------|--------|
-| 1 | Extracts the zip with `tar`, straight from wherever it is |
+| 1 | Extracts the zip, straight from wherever it is, with the configured unpack method |
 | 2 | Writes one exclude list per project into the working folder |
 | 3 | Stops the application pool, and the site when one is configured |
 | 4 | Copies each destination to `<backup root>\<timestamp>\<project>\<folder>` with `robocopy` |
@@ -83,9 +83,19 @@ Extra behaviour worth knowing:
 - **Backup retention** removes older backup runs when a number is set. `0` keeps everything.
 - **Auto-elevate** re-launches the script through UAC when it was not started as Administrator.
 
-The zip is read from wherever it is configured, with no intermediate local copy. `tar` cannot
-always read a UNC path, so a zip on a share is flagged as a warning — point the zip at a local copy
-if the extract step fails on your server.
+The zip is read from wherever it is configured, with no intermediate local copy. An elevated
+session does not always carry credentials for a UNC share, so a zip on a share is flagged as a
+warning — point the zip at a local copy if the extract step fails on your server.
+
+**How the zip is unpacked** is chosen under Defaults:
+
+- `cscript` (default) — a small VBScript written next to the exclude lists at run time, which
+  unpacks through `Shell.Application`. Windows Script Host is present on every Windows version,
+  which is why this is the default. It copies in the background, so the script waits for the
+  extract folder to stop growing before it moves on.
+- `tar` — one call to the `tar` that ships with Windows 10 1803 / Server 2019 and newer. Older
+  servers do not have it: run `where tar` before choosing this.
+- `7zip` — `7z.exe x`. The path lives in `SEVENZIP_EXE` in the generated script.
 
 ## Do-not-replace lists
 

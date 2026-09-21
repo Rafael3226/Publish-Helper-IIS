@@ -1,0 +1,81 @@
+{
+  "scriptName": "deploy-dicard",
+  "title": "Di-Card Deployment",
+  "deployMode": "batch",
+  "autoElevate": false,
+  "pauseAtEnd": true,
+  "stopWait": 3,
+  "useZip": true,
+  "zipSource": "C:\\Users\\ruribe\\Desktop\\deploy\\DICARD_PUBLISH.zip",
+  "extractDir": "C:\\Publish\\DICARD_PUBLISH",
+  "cleanExtract": true,
+  "backupEnabled": true,
+  "backupRoot": "C:\\Publish\\_backups",
+  "backupKeep": 0,
+  "logEnabled": true,
+  "logDir": "C:\\Publish\\_logs",
+  "excludeDir": "C:\\Publish\\_excludes",
+  "projects": [
+    {
+      "enabled": true,
+      "name": "BackendAPI",
+      "sourceMode": "zip",
+      "sourceSub": "DICARD_API",
+      "sourceAbs": "",
+      "targets": [
+        "D:\\website\\edcard\\DiCardAPI5"
+      ],
+      "pool": "DiCardAPI5",
+      "site": "",
+      "backup": true,
+      "keepText": "appsettings.json\nappsettings.Development.json\nweb.config",
+      "uid": "p1"
+    },
+    {
+      "enabled": true,
+      "name": "Frontend",
+      "sourceMode": "zip",
+      "sourceSub": "DICARD_FRONTEND",
+      "sourceAbs": "",
+      "targets": [
+        "D:\\website\\edcard\\dicard5"
+      ],
+      "pool": "dicard5",
+      "site": "",
+      "backup": true,
+      "keepText": "appsettings.json\nappsettings.Development.json\nweb.config",
+      "uid": "p2"
+    },
+    {
+      "enabled": true,
+      "name": "Portal",
+      "sourceMode": "zip",
+      "sourceSub": "DICARD_PORTAL",
+      "sourceAbs": "",
+      "targets": [
+        "D:\\website\\edcard\\cep-portal5"
+      ],
+      "pool": "cep-portal5",
+      "site": "",
+      "backup": true,
+      "keepText": "appsettings.json\nappsettings.Development.json\nweb.config",
+      "uid": "p3"
+    },
+    {
+      "enabled": true,
+      "name": "Maintenance",
+      "sourceMode": "zip",
+      "sourceSub": "DICARD_MAINTENANCE",
+      "sourceAbs": "",
+      "targets": [
+        "D:\\website\\edcard\\maint5"
+      ],
+      "pool": "maint5",
+      "site": "",
+      "backup": true,
+      "keepText": "appsettings.json\nappsettings.Development.json\nweb.config",
+      "uid": "p4"
+    }
+  ],
+  "unzipMethod": "cscript"
+}
