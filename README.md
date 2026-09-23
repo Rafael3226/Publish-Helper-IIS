@@ -21,7 +21,7 @@ step closes it. A folded step still shows its headline, so the whole configurati
 at a glance: the zip and where it is unpacked, how many projects are included,
 how long the script is. The step you were last in is remembered for the next visit.
 
-Everything that rarely changes lives behind the **Defaults** button in the toolbar: the deployment
+Everything that rarely changes lives behind the **Defaults** button in the rail: the deployment
 order, auto-elevate, pause at the end and log writing, the file name, the title shown while running, the wait after
 stopping a pool, the log folder, and the whole backup and working-folder block. It is an ordinary part of the configuration — saved and exported with the
 rest — just kept out of the way until asked for, and it stays visible once opened.
@@ -30,8 +30,14 @@ Projects inside step 2 are the exception — they fold independently, so several
 side by side, with **Expand** / **Collapse** in the step header acting on all of them at once.
 Each project card shows its pool, destination count and number of protected files while closed.
 
+The rail on the left is built from the same parts as the simple view. **Current script** at the top
+shows what is open, whether it was saved and whether it has unsaved changes, with **Save** and
+**Export** next to it. Below that come the **Presets**, **Import** / **New** and the saved
+**Configurations**. Clicking a row opens it, and the configuration currently open is highlighted.
+**View** at the bottom holds the **Defaults** toggle and the theme switch.
+
 Configurations are kept in the browser's local storage. Use **Save** to name and keep several of
-them, and **Export JSON** / **Import JSON** to share one with a colleague or commit it next to the
+them, and **Export** / **Import** to share one as JSON with a colleague or commit it next to the
 script it produces.
 
 ## What the app produces
@@ -116,7 +122,7 @@ accept a quoted path. The app flags this.
 
 ## Presets
 
-The Presets menu contains starting points taken from the scripts already in use — ACTFMS,
+The Presets lists contain starting points taken from the scripts already in use — ACTFMS,
 Di-Card (plus its FAT environment) and the ACTPOL Gateway — so a new script can usually be built by editing one of them.
 
 ## Layout

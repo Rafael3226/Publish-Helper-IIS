@@ -72,44 +72,57 @@
 <div class="shell" id="editor">
 
 <aside class="sidebar">
-  <nav class="side-actions">
-    <div class="side-group">
-      <span class="side-label">Configuration</span>
-      <select id="savedSelect" title="Saved configurations">
-        <option value="">— saved configurations —</option>
-      </select>
-      <div class="side-row">
-        <button id="btnSave" class="btn">Save</button>
-        <button id="btnDelete" class="btn ghost">Delete</button>
-      </div>
+  <section class="lib-section side-card">
+    <h2 class="lib-title">Current script</h2>
+    <div class="side-current">
+      <span class="lib-name" id="curName"></span>
+      <span class="lib-meta" id="curMeta"></span>
     </div>
+    <div class="side-card-actions">
+      <button id="btnSave" class="btn tiny primary" title="Keep it under a name in this browser">Save</button>
+      <button id="btnExportJson" class="btn tiny" title="Download the configuration as JSON">Export</button>
+    </div>
+  </section>
 
-    <div class="side-group">
-      <span class="side-label">Panels</span>
+  <section class="lib-section side-card">
+    <h2 class="lib-title">Presets</h2>
+    <ul id="sidePresets" class="lib-list side-list lib-scroll"></ul>
+  </section>
+
+  <div class="lib-actions">
+    <button id="btnImport" class="btn">Import</button>
+    <button id="btnNew" class="btn primary">New</button>
+    <input type="file" id="fileImport" accept=".json,application/json" hidden>
+  </div>
+
+  <section class="lib-section side-card">
+    <h2 class="lib-title">Configurations</h2>
+    <ul id="sideSaved" class="lib-list side-list lib-scroll"></ul>
+    <p id="sideSavedEmpty" class="note">Nothing saved yet.</p>
+  </section>
+
+  <section class="lib-section side-card">
+    <h2 class="lib-title">View</h2>
+    <div class="side-card-body">
       <button id="btnDefaults" class="btn ghost side-btn" title="Show the rarely-changed values">Defaults</button>
-    </div>
-
-    <div class="side-group">
-      <span class="side-label">Theme</span>
       <div class="side-row theme-switch" role="group" aria-label="Theme">
         <button class="btn ghost" data-theme-choice="system" title="Follow the Windows setting">System</button>
         <button class="btn ghost" data-theme-choice="light">Light</button>
         <button class="btn ghost" data-theme-choice="dark">Dark</button>
       </div>
     </div>
-
-    <div class="side-group">
-      <span class="side-label">Configuration file</span>
-      <button id="btnPreset" class="btn ghost side-btn">Presets ▸</button>
-      <button id="btnImport" class="btn ghost side-btn">Import</button>
-      <button id="btnExportJson" class="btn ghost side-btn">Export</button>
-      <button id="btnNew" class="btn ghost side-btn">New</button>
-      <input type="file" id="fileImport" accept=".json,application/json" hidden>
-    </div>
-  </nav>
+  </section>
 </aside>
 
-<div id="presetMenu" class="menu" hidden></div>
+<template id="sideItemTemplate">
+  <li class="lib-item side-item" tabindex="0">
+    <div class="lib-text">
+      <span class="lib-name"></span>
+      <span class="lib-meta"></span>
+    </div>
+    <button class="icon danger" data-side="delete" title="Delete this configuration">✕</button>
+  </li>
+</template>
 
 <div class="content">
 

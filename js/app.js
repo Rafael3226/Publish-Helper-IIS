@@ -48,10 +48,12 @@
         activeStep: rememberedStep(raw.activeStep),
         showDefaults: !!raw.showDefaults,
         dirty: !!raw.dirty,
+        savedName: typeof raw.savedName === 'string' ? raw.savedName : '',
         projects: raw.projects || {}
       };
     } catch (e) {
-      return { view: 'simple', activeStep: 'step-package', showDefaults: false, dirty: false, projects: {} };
+      return { view: 'simple', activeStep: 'step-package', showDefaults: false, dirty: false,
+               savedName: '', projects: {} };
     }
   }
 
@@ -99,6 +101,13 @@
     if (ui.dirty) return;
     ui.dirty = true;
     persistUi();
+    renderCurrent();
+  }
+
+  function markClean() {
+    ui.dirty = false;
+    persistUi();
+    renderCurrent();
   }
 
   /* loading something else throws the edited script away, so ask only when that loses work */
@@ -106,12 +115,14 @@
     return !ui.dirty || confirm(message || 'Replace the script being edited? Unsaved changes are lost.');
   }
 
+  /* savedName: the saved configuration this came from, so Save offers to overwrite it */
   function replaceState(cfg, savedName) {
     state = migrate(cfg);
     ui.dirty = false;
+    ui.savedName = savedName || '';
     persistUi();
-    $('#savedSelect').value = savedName || '';
     renderAll();
+    renderSaved();
   }
 
   function newProject(over) {
@@ -347,6 +358,28 @@
     $('#sum-output').textContent = lines + ' lines  ·  ' + name;
   }
 
+  /* the rail's "current script" card: what is open and whether it is kept anywhere */
+  function currentLines() {
+    var lines = [
+      { text: ui.savedName ? 'saved as ' + ui.savedName : 'not saved' },
+      { text: libraryMeta(state) }
+    ];
+    if (ui.dirty) lines.push({ text: 'unsaved changes', cls: 'dirty' });
+    return lines;
+  }
+
+  function renderCurrent() {
+    $('#curName').textContent = (state.title || '').trim() || 'Untitled script';
+    var meta = $('#curMeta');
+    meta.innerHTML = '';
+    currentLines().forEach(function (line) {
+      var el = document.createElement('span');
+      el.className = line.cls || '';
+      el.textContent = line.text;
+      meta.appendChild(el);
+    });
+  }
+
   function renderWarnings() {
     var issues = BatGenerator.validate(state);
     var card = $('#warningsCard');
@@ -367,6 +400,7 @@
     $('#output').textContent = script;
     $('#zipTree').textContent = BatGenerator.zipTree(state);
     renderSummaries(script);
+    renderCurrent();
     renderWarnings();
   }
 
@@ -559,43 +593,21 @@
   /* ---------------------------------------------------------------- */
   /* saved configurations                                             */
   /* ---------------------------------------------------------------- */
-  function renderSavedList(selected) {
-    var sel = $('#savedSelect');
-    var all = savedConfigs();
-    sel.innerHTML = '<option value="">— saved configurations —</option>';
-    Object.keys(all).sort().forEach(function (name) {
-      var opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      sel.appendChild(opt);
-    });
-    sel.value = selected || '';
-    renderLibrarySaved();
-  }
-
   function savedCopy(name) {
     var cfg = savedConfigs()[name];
     return cfg ? JSON.parse(JSON.stringify(cfg)) : null;
   }
 
-  $('#savedSelect').addEventListener('change', function () {
-    var name = this.value;
-    var cfg = name && savedCopy(name);
-    if (!cfg) return;
-    replaceState(cfg, name);
-    toast('Loaded "' + name + '"');
-  });
-
   $('#btnSave').addEventListener('click', function () {
-    var suggested = $('#savedSelect').value || state.scriptName || state.title;
+    var suggested = ui.savedName || state.scriptName || state.title;
     var name = prompt('Save this configuration as:', suggested);
     if (!name) return;
     var all = savedConfigs();
     all[name] = JSON.parse(JSON.stringify(state));
     writeSaved(all);
-    ui.dirty = false;
-    persistUi();
-    renderSavedList(name);
+    ui.savedName = name;
+    markClean();
+    renderSaved();
     toast('Saved "' + name + '"');
   });
 
@@ -604,16 +616,14 @@
     var all = savedConfigs();
     delete all[name];
     writeSaved(all);
-    var current = $('#savedSelect').value;
-    renderSavedList(current === name ? '' : current);
+    if (ui.savedName === name) {
+      ui.savedName = '';
+      persistUi();
+      renderCurrent();
+    }
+    renderSaved();
     toast('Deleted "' + name + '"');
   }
-
-  $('#btnDelete').addEventListener('click', function () {
-    var name = $('#savedSelect').value;
-    if (!name) { toast('Pick a saved configuration first.'); return; }
-    deleteSaved(name);
-  });
 
   /* ---------------------------------------------------------------- */
   /* import, export, new, presets                                     */
@@ -621,8 +631,7 @@
   $('#btnExportJson').addEventListener('click', function () {
     download(BatGenerator.slug(state.scriptName || state.title) + '.json',
       JSON.stringify(state, null, 2));
-    ui.dirty = false;
-    persistUi();
+    markClean();
   });
 
   function startImport() {
@@ -664,39 +673,6 @@
     replaceState(preset.build());
     setView('full');
   }
-
-  var menu = $('#presetMenu');
-  Presets.list.forEach(function (preset) {
-    var b = document.createElement('button');
-    b.appendChild(document.createTextNode(preset.label));
-    var hint = document.createElement('span');
-    hint.className = 'menu-hint';
-    hint.textContent = preset.hint;
-    b.appendChild(hint);
-    b.addEventListener('click', function () {
-      menu.hidden = true;
-      loadPreset(preset);
-    });
-    menu.appendChild(b);
-  });
-
-  $('#btnPreset').addEventListener('click', function (ev) {
-    ev.stopPropagation();
-    if (!menu.hidden) { menu.hidden = true; return; }
-
-    menu.hidden = false;                              /* unhide first so it can be measured */
-    var rect = this.getBoundingClientRect();          /* the menu is fixed, so no scroll offset */
-    if (window.matchMedia('(max-width: 900px)').matches) {
-      menu.style.top = (rect.bottom + 4) + 'px';      /* the sidebar is a bar across the top */
-      menu.style.left = Math.max(8, rect.left - 60) + 'px';
-    } else {
-      var room = window.innerHeight - menu.offsetHeight - 8;
-      menu.style.top = Math.max(8, Math.min(rect.top, room)) + 'px';
-      menu.style.left = (rect.right + 8) + 'px';      /* flies out beside the sidebar */
-    }
-  });
-
-  document.addEventListener('click', function () { menu.hidden = true; });
 
 
   /* ---------------------------------------------------------------- */
@@ -778,6 +754,63 @@
     $('#libSavedEmpty').hidden = names.length > 0;
   }
 
+  /* ---------------------------------------------------------------- */
+  /* the full view's rail: the same lists, as compact clickable rows  */
+  /* ---------------------------------------------------------------- */
+  /* a whole row acts as a button: click anywhere but its own buttons, or Enter / Space on it */
+  function onActivate(row, fn) {
+    row.addEventListener('click', function (ev) { if (!ev.target.closest('button')) fn(); });
+    row.addEventListener('keydown', function (ev) {
+      if (ev.target !== row || (ev.key !== 'Enter' && ev.key !== ' ')) return;
+      ev.preventDefault();
+      fn();
+    });
+  }
+
+  /* { name, meta, active, onOpen, onDelete } */
+  function sideItem(item) {
+    var li = $('#sideItemTemplate').content.firstElementChild.cloneNode(true);
+    $('.lib-name', li).textContent = item.name;
+    $('.lib-meta', li).textContent = item.meta;
+    li.title = item.name;
+    li.classList.toggle('active', !!item.active);
+    onActivate(li, item.onOpen);
+    var del = $('[data-side="delete"]', li);
+    if (item.onDelete) del.addEventListener('click', item.onDelete);
+    else del.remove();
+    return li;
+  }
+
+  function renderSidePresets() {
+    var host = $('#sidePresets');
+    host.innerHTML = '';
+    Presets.list.forEach(function (preset) {
+      if (preset.id === 'blank') return;
+      host.appendChild(sideItem({
+        name: preset.label, meta: libraryMeta(migrate(preset.build())),
+        onOpen: function () { loadPreset(preset); }
+      }));
+    });
+  }
+
+  function renderSideSaved(names) {
+    var host = $('#sideSaved');
+    host.innerHTML = '';
+    names.forEach(function (name) {
+      host.appendChild(sideItem({
+        name: name, meta: libraryMeta(migrate(savedCopy(name))), active: name === ui.savedName,
+        onOpen: function () { openSaved(name); },
+        onDelete: function () { deleteSaved(name); }
+      }));
+    });
+    $('#sideSavedEmpty').hidden = names.length > 0;
+  }
+
+  /* both lists of saved configurations, the library's and the rail's */
+  function renderSaved() {
+    renderLibrarySaved();
+    renderSideSaved(Object.keys(savedConfigs()).sort());
+  }
 
   /* ---------------------------------------------------------------- */
   /* toast                                                            */
@@ -793,7 +826,8 @@
 
   /* ---------------------------------------------------------------- */
   renderLibraryPresets();
-  renderSavedList('');
+  renderSidePresets();
+  renderSaved();
   renderAll();
   applyView();
 

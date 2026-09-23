@@ -13,7 +13,7 @@
   --radius: 8px;
   --mono: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
   --wrap: 1700px;
-  --side: 220px;
+  --side: 270px;
   color-scheme: dark;   /* native controls and scrollbars follow the palette */
 }
 
@@ -133,19 +133,36 @@ code { font-family: var(--mono); font-size: .92em; background: var(--panel-2); p
 /* ---------------------------------------------------- sidebar */
 .shell { display: flex; align-items: stretch; }
 
+/* the rail is built from the same cards and rows as the simple view */
 .sidebar {
   flex: none; width: var(--side);
   padding: 14px;
-  background: var(--panel);
+  background: var(--bg);
   border-right: 1px solid var(--line);
   overflow-y: auto;
+  display: flex; flex-direction: column; gap: 12px;
 }
 
-.side-actions { display: flex; flex-direction: column; gap: 18px; }
-.side-group { display: flex; flex-direction: column; gap: 6px; }
-.side-label {
-  font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
-}
+.side-card { flex: none; }
+.side-card .lib-title { padding: 9px 12px; font-size: 13px; }
+.side-card .note { padding: 10px 12px; }
+.side-current { display: flex; flex-direction: column; padding: 10px 12px 0; min-width: 0; }
+.side-current .lib-meta span { display: block; overflow: hidden; text-overflow: ellipsis; }
+.side-current .dirty { color: var(--warn); }
+.side-card-actions { display: flex; gap: 6px; padding: 10px 12px 12px; }
+.side-card-actions .btn { flex: 1; }
+.side-card-body { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+.sidebar .lib-actions .btn { padding: 7px 10px; }
+
+.side-list.lib-scroll { max-height: 220px; }
+.side-item { padding: 8px 12px; gap: 6px; cursor: pointer; }
+.side-item .lib-name { font-size: 12.5px; }
+.side-item .lib-meta { font-size: 11px; }
+.side-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.side-item.active { background: var(--panel-2); box-shadow: inset 3px 0 0 var(--accent); }
+.side-item .icon { flex: none; opacity: 0; }
+.side-item:hover .icon, .side-item:focus-within .icon, .side-item.active .icon { opacity: 1; }
+
 .side-row { display: flex; gap: 6px; }
 .side-row .btn { flex: 1; }
 .side-btn { text-align: left; }
@@ -157,21 +174,17 @@ code { font-family: var(--mono); font-size: .92em; background: var(--panel-2); p
 
 .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
-/* narrow windows: the rail folds back into a bar under the title */
+/* narrow windows: the rail folds back above the content, its cards side by side */
 @media (max-width: 900px) {
   .topbar { padding-left: 0; }        /* no rail to clear once it folds to the top */
   .shell { flex-direction: column; min-height: 0; }
   .sidebar {
-    width: auto; padding: 10px 14px;
+    width: auto; padding: 12px 14px;
     border-right: none; border-bottom: 1px solid var(--line);
-    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: start;
     overflow: visible;
   }
-  .side-actions { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 10px 18px; }
-  .side-group { flex-direction: row; align-items: center; }
-  .side-label { display: none; }
-  .side-btn { text-align: center; }
-  #savedSelect { width: 190px; }
+  .sidebar .lib-actions { grid-column: 1 / -1; }
 }
 
 /* ---------------------------------------------------- controls */
@@ -236,7 +249,7 @@ label > input, label > select, label > textarea, label > .withsuffix { margin-to
   max-width: var(--wrap);
   margin: 0 auto;
 }
-/* the sidebar eats 220px, so the script column needs a wider window than the content alone */
+/* the sidebar eats var(--side), so the script column needs a wider window than the content alone */
 @media (max-width: 1400px) {
   .workspace { grid-template-columns: 1fr; gap: 10px; }
 }
@@ -398,18 +411,7 @@ details[open] > summary > .chev { transform: rotate(180deg); }
 .pane .output { max-height: none; }
 @media (max-width: 1400px) { .pane .output { max-height: 65vh; } }
 
-/* ---------------------------------------------------- menu + toast */
-.menu {
-  position: fixed; z-index: 40; background: var(--panel); border: 1px solid var(--line);
-  border-radius: var(--radius); padding: 4px; min-width: 240px; box-shadow: 0 10px 28px rgba(0,0,0,.4);
-}
-.menu button {
-  display: block; width: 100%; text-align: left; background: transparent; border: none;
-  color: var(--text); padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 13px;
-}
-.menu button:hover { background: var(--panel-2); }
-.menu .menu-hint { display: block; font-size: 11px; color: var(--muted); }
-
+/* ---------------------------------------------------- toast */
 .toast {
   position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
   background: var(--panel); border: 1px solid var(--accent); color: var(--text);
