@@ -47,12 +47,13 @@
         view: raw.view === 'full' ? 'full' : 'simple',
         activeStep: rememberedStep(raw.activeStep),
         showDefaults: !!raw.showDefaults,
+        scriptOpen: raw.scriptOpen === true,           /* folded unless opened on purpose */
         dirty: !!raw.dirty,
         savedName: typeof raw.savedName === 'string' ? raw.savedName : '',
         projects: raw.projects || {}
       };
     } catch (e) {
-      return { view: 'simple', activeStep: 'step-package', showDefaults: false, dirty: false,
+      return { view: 'simple', activeStep: 'step-package', showDefaults: false, scriptOpen: false, dirty: false,
                savedName: '', projects: {} };
     }
   }
@@ -202,6 +203,30 @@
     persistUi();
   });
 
+  /* the script pane starts folded; while it is, the editor gets the whole width */
+  function applyScriptOpen() {
+    var shut = !ui.scriptOpen;
+    $('.content').classList.toggle('script-shut', shut);
+    $('#step-output').classList.toggle('shut', shut);
+    $('#scriptBody').hidden = shut;
+    $('#scriptHead').setAttribute('aria-expanded', shut ? 'false' : 'true');
+  }
+
+  function toggleScript() {
+    ui.scriptOpen = !ui.scriptOpen;
+    applyScriptOpen();
+    persistUi();
+  }
+
+  $('#scriptHead').addEventListener('click', function (ev) {
+    if (ev.target.closest('button')) return;           /* copy / download act, they do not fold */
+    toggleScript();
+  });
+  $('#scriptHead').addEventListener('keydown', function (ev) {
+    if (ev.target !== ev.currentTarget) return;
+    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggleScript(); }
+  });
+
   /* theme: 'system' follows the OS, 'light' / 'dark' pin it via html[data-theme] */
   function currentTheme() {
     var t = document.documentElement.getAttribute('data-theme');
@@ -254,6 +279,7 @@
     $$('details.step').forEach(function (d) { d.open = d.id === ui.activeStep; });
     closingOthers = false;
     applyDefaultsVisibility();
+    applyScriptOpen();
   }
 
   function renderProjects() {

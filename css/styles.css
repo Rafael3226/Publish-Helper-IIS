@@ -246,6 +246,7 @@ label > input, label > select, label > textarea, label > .withsuffix { margin-to
   align-items: start;
   gap: 0 14px;
   padding: 14px;
+  width: 100%;                  /* auto margins in the flex column would otherwise shrink it to its content */
   max-width: var(--wrap);
   margin: 0 auto;
 }
@@ -263,7 +264,6 @@ label > input, label > select, label > textarea, label > .withsuffix { margin-to
   .library { flex: 1; min-height: 0; overflow-y: auto; max-width: none;
              padding-left: max(14px, calc(50% - 416px)); padding-right: max(14px, calc(50% - 416px)); }
   .content { min-height: 0; overflow: hidden; }
-  .warnbar { flex: none; }
   .workspace {
     flex: 1; min-height: 0; overflow: hidden;
     align-items: stretch;
@@ -272,7 +272,14 @@ label > input, label > select, label > textarea, label > .withsuffix { margin-to
   .steps { min-height: 0; overflow-y: auto; padding-right: 6px; }
   .script-col { min-height: 0; }
   .pane { height: 100%; }
+  /* script folded: one column that scrolls as a whole, the script bar right under the steps */
+  .content.script-shut { overflow-y: auto; }
+  .content.script-shut .workspace { flex: none; overflow: visible; grid-template-rows: none; }
+  .content.script-shut .steps { overflow: visible; padding-right: 0; }
+  .content.script-shut .pane { height: auto; }
 }
+/* one column: capped and centred, so wide screens get breathing room on both sides */
+.content.script-shut .workspace { grid-template-columns: minmax(0, 1fr); gap: 10px; max-width: 1200px; }
 
 /* ---------------------------------------------------- steps */
 .steps {
@@ -338,9 +345,7 @@ details[open] > summary > .chev { transform: rotate(180deg); }
 /* ---------------------------------------------------- warnings */
 .warnbar {
   display: flex; gap: 12px; align-items: baseline;
-  margin: 14px auto -4px; padding: 9px 14px;
-  width: calc(100% - 28px);
-  max-width: calc(var(--wrap) - 28px);        /* lines up with .workspace minus its padding */
+  flex: none; padding: 9px 14px;
   background: var(--panel); border: 1px solid var(--warn); border-left-width: 3px;
   border-radius: var(--radius);
 }
@@ -391,13 +396,13 @@ details[open] > summary > .chev { transform: rotate(180deg); }
 /* ---------------------------------------------------- output */
 .script-col { min-width: 0; }
 
-/* the script pane never folds and never scrolls the page — only its own body scrolls */
+/* the script pane folds from its header and never scrolls the page — only its own body scrolls */
 .pane { display: flex; flex-direction: column; }
-.pane .step-head.static { cursor: default; }
-.pane .step-head.static:hover { background: var(--head); }
 .pane .step-num { background: var(--accent); border-color: var(--accent); color: #fff; }
 .pane > .step-head { border-bottom: 1px solid var(--line); }
-.pane > .step-body { min-height: 0; flex: 1; display: flex; animation: none; }
+.pane.shut > .step-head { border-bottom: none; }
+.pane.shut .step-num { background: var(--panel-2); border-color: var(--line); color: var(--muted); }
+.pane:not(.shut) > .step-head > .chev { transform: rotate(180deg); }.pane > .step-body { min-height: 0; flex: 1; display: flex; animation: none; }
 
 @media (max-width: 1400px) {
   .pane > .step-body { display: block; }

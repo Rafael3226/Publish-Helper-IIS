@@ -126,14 +126,15 @@
 
 <div class="content">
 
-<div id="warningsCard" class="warnbar" hidden>
-  <span class="warnbar-title">Checks</span>
-  <ul id="warnings" class="warnings"></ul>
-</div>
-
 <main class="workspace">
 
 <div class="steps">
+
+  <!-- the checks ride in the steps column, so they share its width -->
+  <div id="warningsCard" class="warnbar" hidden>
+    <span class="warnbar-title">Checks</span>
+    <ul id="warnings" class="warnings"></ul>
+  </div>
 
   <!-- ----------------------------------------------- 1. package -->
   <details class="step" id="step-package" open>
@@ -262,14 +263,16 @@
 <!-- -------------------------------------------------- 3. script -->
 <aside class="script-col">
   <section class="step pane" id="step-output">
-    <div class="step-head static">
+    <div class="step-head" id="scriptHead" role="button" tabindex="0" aria-controls="scriptBody"
+         title="Show or hide the script">
       <span class="step-num">3</span>
       <span class="step-title">Generated script</span>
       <span class="step-sum" id="sum-output"></span>
       <button id="btnCopy" class="btn tiny">Copy</button>
       <button id="btnDownload" class="btn tiny primary">Download .bat</button>
+      <span class="chev" aria-hidden="true">▾</span>
     </div>
-    <div class="step-body no-pad">
+    <div class="step-body no-pad" id="scriptBody">
       <pre id="output" class="output"></pre>
     </div>
   </section>
