@@ -40,7 +40,7 @@
       "targets": [
         "D:\\website\\edcard\\dicard5"
       ],
-      "pool": "dicard5",
+      "pool": "Edcard5",
       "site": "",
       "backup": true,
       "keepText": "appsettings.json\nappsettings.Development.json\nweb.config",
