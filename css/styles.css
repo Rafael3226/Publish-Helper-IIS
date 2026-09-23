@@ -223,8 +223,27 @@ select { cursor: pointer; }
 label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 12px; }
 label > input, label > select, label > textarea, label > .withsuffix { margin-top: 3px; }
 
-.check { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text); font-size: 13px; cursor: pointer; }
-.check input { width: auto; margin: 0; cursor: pointer; }
+.check { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 13px; cursor: pointer; }
+
+/* every checkbox is drawn as a toggle switch; it stays a real checkbox underneath */
+.check input {
+  appearance: none; -webkit-appearance: none;
+  position: relative; flex: none;
+  width: 30px; height: 17px; margin: 0; padding: 0;
+  border: 1px solid var(--line); border-radius: 999px;
+  background: var(--panel-2);
+  cursor: pointer; transition: background .15s ease, border-color .15s ease;
+}
+.check input::before {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--muted);
+  transition: transform .15s ease, background .15s ease;
+}
+.check input:checked { background: var(--accent); border-color: var(--accent); }
+.check input:checked::before { transform: translateX(13px); background: #fff; }
+.check input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check input:disabled { opacity: .5; cursor: default; }
 .checks { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-bottom: 14px; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0 16px; }

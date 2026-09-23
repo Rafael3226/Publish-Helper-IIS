@@ -146,7 +146,7 @@
     </summary>
     <div class="step-body">
       <div class="checks">
-        <label class="check"><input type="checkbox" data-bind="useZip"> Deploy from a zip file</label>
+        <label class="check"><input type="checkbox" role="switch" data-bind="useZip"> Deploy from a zip file</label>
       </div>
       <div class="split cond-zip">
         <div class="grid">
@@ -196,10 +196,10 @@
         exported with it — this panel is simply out of the way until you need it.</p>
 
       <div class="checks">
-        <label class="check"><input type="checkbox" data-bind="autoElevate"> Auto-elevate to Administrator</label>
-        <label class="check"><input type="checkbox" data-bind="pauseAtEnd"> Pause at the end</label>
-        <label class="check"><input type="checkbox" data-bind="logEnabled"> Write a log file</label>
-        <label class="check cond-zip"><input type="checkbox" data-bind="cleanExtract">
+        <label class="check"><input type="checkbox" role="switch" data-bind="autoElevate"> Auto-elevate to Administrator</label>
+        <label class="check"><input type="checkbox" role="switch" data-bind="pauseAtEnd"> Pause at the end</label>
+        <label class="check"><input type="checkbox" role="switch" data-bind="logEnabled"> Write a log file</label>
+        <label class="check cond-zip"><input type="checkbox" role="switch" data-bind="cleanExtract">
           Empty the extract folder before extracting</label>
       </div>
 
@@ -237,7 +237,7 @@
       <hr class="rule">
 
       <div class="checks">
-        <label class="check"><input type="checkbox" data-bind="backupEnabled">
+        <label class="check"><input type="checkbox" role="switch" data-bind="backupEnabled">
           Back up the destination folders before replacing files</label>
       </div>
       <div class="grid">
@@ -335,8 +335,8 @@
           </label>
         </div>
         <div class="checks">
-          <label class="check"><input type="checkbox" data-bind="enabled"> Include in the script</label>
-          <label class="check"><input type="checkbox" data-bind="backup"> Back up this project</label>
+          <label class="check"><input type="checkbox" role="switch" data-bind="enabled"> Include in the script</label>
+          <label class="check"><input type="checkbox" role="switch" data-bind="backup"> Back up this project</label>
         </div>
         <label>Do not replace these files
           <textarea data-bind="keepText" rows="4" placeholder="appsettings.json&#10;web.config"></textarea>
