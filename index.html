@@ -183,6 +183,120 @@
     </div>
   </details>
 
+  <!-- ---------------------------------------------- 3. database -->
+  <details class="step" id="step-database">
+    <summary class="step-head">
+      <span class="step-num">3</span>
+      <span class="step-title">Database scripts</span>
+      <span class="step-sum" id="sum-database"></span>
+      <span class="chev" aria-hidden="true">▾</span>
+    </summary>
+    <div class="step-body">
+      <div class="checks">
+        <label class="check"><input type="checkbox" role="switch" data-bind="mssqlEnabled"> Run SQL Server scripts</label>
+        <label class="check"><input type="checkbox" role="switch" data-bind="as400Enabled"> Run AS400 scripts</label>
+      </div>
+      <p class="cond-nosql note">Both are off — the script does not touch any database.</p>
+
+      <div class="grid cond-sql">
+        <label>When to run them
+          <select data-bind="sqlWhen">
+            <option value="before">Before IIS is stopped</option>
+            <option value="stopped">While IIS is stopped, before the files are copied</option>
+            <option value="after">After IIS is started again</option>
+          </select>
+        </label>
+        <label class="check db-stop"><input type="checkbox" role="switch" data-bind="sqlStopOnError">
+          A failed script stops the deployment</label>
+      </div>
+      <p class="note cond-sql">Scripts run one after the other; after a failure the rest of that database's
+        list is skipped. <em>Before</em> aborts without touching IIS, <em>while stopped</em> keeps the old files and
+        starts IIS again, <em>after</em> can only count the error.</p>
+
+      <section class="db-card cond-mssql">
+        <h3 class="db-title">SQL Server</h3>
+        <div class="grid">
+          <label>Tool
+            <select data-bind="mssqlTool">
+              <option value="sqlcmd">sqlcmd</option>
+              <option value="invoke-sqlcmd">Invoke-Sqlcmd — PowerShell SqlServer module</option>
+            </select>
+          </label>
+          <label>Server <span class="hint-inline">instance</span>
+            <input data-bind="mssqlServer" placeholder="SQLSRV01\PROD">
+          </label>
+          <label>Database
+            <input data-bind="mssqlDatabase" placeholder="DICARD">
+          </label>
+          <label>Authentication
+            <select data-bind="mssqlAuth">
+              <option value="windows">Windows — the account running the script</option>
+              <option value="sql">SQL Server login</option>
+            </select>
+          </label>
+          <label class="cond-mssql-sql">User
+            <input data-bind="mssqlUser" placeholder="deploy_user">
+          </label>
+          <label class="cond-mssql-sql">Password <span class="hint-inline">empty = asked at run time</span>
+            <input type="password" data-bind="mssqlPassword" autocomplete="new-password">
+          </label>
+        </div>
+        <div class="checks">
+          <label class="check"><input type="checkbox" role="switch" data-bind="mssqlTrustCert">
+            Trust the server certificate</label>
+        </div>
+        <div class="grid">
+          <label>Scripts folder <span class="hint-inline cond-zip">relative = inside the zip</span>
+            <input data-bind="mssqlDir" placeholder="SQL_SERVER">
+          </label>
+          <label>Scripts, in order <span class="hint-inline">empty = every .sql in the folder, by name</span>
+            <textarea data-bind="mssqlFiles" rows="3" placeholder="01_tables.sql&#10;02_procedures.sql"></textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="db-card cond-as400">
+        <h3 class="db-title">AS400 <span class="hint-inline">Db2 for i</span></h3>
+        <div class="grid">
+          <label>Tool
+            <select data-bind="as400Tool">
+              <option value="odbc">IBM i Access ODBC Driver — through PowerShell</option>
+              <option value="db2">Db2 command line processor — db2</option>
+            </select>
+          </label>
+          <label class="cond-as400-odbc">System <span class="hint-inline">host name or IP</span>
+            <input data-bind="as400System" placeholder="AS400PROD">
+          </label>
+          <label class="cond-as400-odbc">Default library <span class="hint-inline">optional</span>
+            <input data-bind="as400Library" placeholder="DICARDLIB">
+          </label>
+          <label class="cond-as400-odbc">ODBC driver name
+            <input data-bind="as400Driver" placeholder="IBM i Access ODBC Driver">
+          </label>
+          <label class="cond-as400-db2">Database alias <span class="hint-inline">catalogued in the Db2 client</span>
+            <input data-bind="as400Database" placeholder="AS400PRD">
+          </label>
+          <label>User
+            <input data-bind="as400User" placeholder="DEPLOYUSR">
+          </label>
+          <label>Password <span class="hint-inline">empty = asked at run time</span>
+            <input type="password" data-bind="as400Password" autocomplete="new-password">
+          </label>
+        </div>
+        <div class="grid">
+          <label>Scripts folder <span class="hint-inline cond-zip">relative = inside the zip</span>
+            <input data-bind="as400Dir" placeholder="AS400">
+          </label>
+          <label>Scripts, in order <span class="hint-inline">empty = every .sql in the folder, by name</span>
+            <textarea data-bind="as400Files" rows="3" placeholder="01_files.sql&#10;02_procedures.sql"></textarea>
+          </label>
+        </div>
+        <p class="note cond-as400-odbc">Statements are split on a <code>;</code> at the end of a line and
+          <code>--</code> comment lines are skipped — the shape ACS Run SQL Scripts saves.</p>
+      </section>
+    </div>
+  </details>
+
   <!-- ------------------------------------------------- defaults -->
   <details class="step defaults" id="step-defaults" hidden>
     <summary class="step-head">
@@ -260,12 +374,12 @@
 
 </div><!-- /.steps -->
 
-<!-- -------------------------------------------------- 3. script -->
+<!-- -------------------------------------------------- 4. script -->
 <aside class="script-col">
   <section class="step pane" id="step-output">
     <div class="step-head" id="scriptHead" role="button" tabindex="0" aria-controls="scriptBody"
          title="Show or hide the script">
-      <span class="step-num">3</span>
+      <span class="step-num">4</span>
       <span class="step-title">Generated script</span>
       <span class="step-sum" id="sum-output"></span>
       <button id="btnCopy" class="btn tiny">Copy</button>

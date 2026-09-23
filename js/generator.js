@@ -29,6 +29,15 @@
     return t(v).replace(/\^/g, '^^').replace(/([&<>|()])/g, '^$1').replace(/%/g, '%%');
   }
 
+  /* same, for a line with "strings" in it: cmd takes everything between quotes literally,
+     so a caret there would land in the file - only % still has to be doubled */
+  function escEchoQuoted(v) {
+    return t(v).split('"').map(function (part, i) {
+      return i % 2 ? part.replace(/%/g, '%%')
+                   : part.replace(/\^/g, '^^').replace(/([&<>|()])/g, '^$1').replace(/%/g, '%%');
+    }).join('"');
+  }
+
   function bool(v) { return v ? '1' : '0'; }
 
   function parseKeep(text) {
@@ -59,6 +68,30 @@
   function unzipMethod(cfg) {
     var m = t(cfg.unzipMethod).toLowerCase();
     return UNZIP_METHODS.indexOf(m) === -1 ? 'cscript' : m;
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* database scripts                                                 */
+  /* ---------------------------------------------------------------- */
+  var SQL_WHEN = ['before', 'stopped', 'after'];
+  function sqlWhen(cfg) {
+    var w = t(cfg.sqlWhen).toLowerCase();
+    if (SQL_WHEN.indexOf(w) === -1) w = 'before';
+    /* one project at a time has no moment when every pool is down */
+    if (w === 'stopped' && cfg.deployMode === 'sequential') w = 'before';
+    return w;
+  }
+  function mssqlTool(cfg) { return t(cfg.mssqlTool).toLowerCase() === 'invoke-sqlcmd' ? 'invoke-sqlcmd' : 'sqlcmd'; }
+  function as400Tool(cfg) { return t(cfg.as400Tool).toLowerCase() === 'db2' ? 'db2' : 'odbc'; }
+  function anySql(cfg) { return !!(cfg.mssqlEnabled || cfg.as400Enabled); }
+  function isAbsolute(p) { return /^([a-z]:|\\\\)/i.test(t(p)); }
+
+  /* a relative scripts folder is read from inside the zip, like a project origin */
+  function sqlDirInZip(cfg, dir) { return !!cfg.useZip && !isAbsolute(dir); }
+  function sqlDirOf(cfg, dir) {
+    if (!sqlDirInZip(cfg, dir)) return trimSlash(dir);
+    var sub = trimBothSlash(dir);
+    return sub ? '%EXTRACT_DIR%\\' + escSet(sub) : '%EXTRACT_DIR%';
   }
 
   /* ---------------------------------------------------------------- */
@@ -120,6 +153,8 @@
     L.push(setv('EXCLUDE_DIR', trimSlash(cfg.excludeDir)));
     L.push('');
 
+    if (anySql(cfg)) sqlConfig(cfg, L);
+
     L.push('REM ---------- Projects ----------');
     L.push(setv('PROJECT_COUNT', String(projects.length)));
     L.push('');
@@ -151,6 +186,89 @@
     L.push('REM ' + repeat('#', 58));
     L.push('REM #' + center('E N D   O F   C O N F I G U R A T I O N', 56) + '#');
     L.push('REM ' + repeat('#', 58));
+  }
+
+  var SQL_WHEN_TEXT = {
+    before: 'after unpacking, before IIS is stopped',
+    stopped: 'while IIS is stopped, before the files are copied',
+    after: 'after IIS is started again'
+  };
+
+  function sqlConfig(cfg, L) {
+    L.push('REM ---------- Database scripts ----------');
+    L.push('REM run ' + SQL_WHEN_TEXT[sqlWhen(cfg)]);
+    L.push('REM 1 = a failed script stops the deployment (later scripts are skipped either way)');
+    L.push(setv('SQL_STOP_ON_ERROR', bool(cfg.sqlStopOnError)));
+    L.push('REM leave a script list empty to run every *.sql in its folder, by name');
+    L.push('');
+    if (cfg.mssqlEnabled) mssqlConfig(cfg, L);
+    if (cfg.as400Enabled) as400Config(cfg, L);
+  }
+
+  function mssqlConfig(cfg, L) {
+    var sqlLogin = cfg.mssqlAuth === 'sql';
+    L.push('REM --- SQL Server ---');
+    L.push(setv('MSSQL_ENABLED', '1'));
+    L.push('REM sqlcmd or invoke-sqlcmd (PowerShell SqlServer module)');
+    L.push(setv('MSSQL_TOOL', mssqlTool(cfg)));
+    if (mssqlTool(cfg) === 'sqlcmd') L.push(setv('MSSQL_SQLCMD', t(cfg.mssqlSqlcmd) || 'sqlcmd'));
+    L.push(setv('MSSQL_SERVER', cfg.mssqlServer));
+    L.push(setv('MSSQL_DATABASE', cfg.mssqlDatabase));
+    L.push('REM windows = the account running this script, sql = user and password below');
+    L.push(setv('MSSQL_AUTH', sqlLogin ? 'sql' : 'windows'));
+    if (sqlLogin) {
+      L.push(setv('MSSQL_USER', cfg.mssqlUser));
+      passwordLine(L, 'MSSQL_PASSWORD', cfg.mssqlPassword);
+    }
+    L.push(setv('MSSQL_TRUST_CERT', bool(cfg.mssqlTrustCert)));
+    sqlFilesConfig(cfg, L, 'mssql');
+    L.push('');
+  }
+
+  function as400Config(cfg, L) {
+    L.push('REM --- AS400 / Db2 for i ---');
+    L.push(setv('AS400_ENABLED', '1'));
+    L.push('REM odbc = IBM i Access ODBC Driver through PowerShell, db2 = Db2 command line processor');
+    L.push(setv('AS400_TOOL', as400Tool(cfg)));
+    if (as400Tool(cfg) === 'odbc') {
+      L.push(setv('AS400_DRIVER', t(cfg.as400Driver) || 'IBM i Access ODBC Driver'));
+      L.push(setv('AS400_SYSTEM', cfg.as400System));
+      L.push('REM default schema for unqualified names, optional');
+      L.push(setv('AS400_LIBRARY', cfg.as400Library));
+    } else {
+      L.push(setv('AS400_DB2', t(cfg.as400Db2Exe) || 'db2'));
+      L.push('REM database alias catalogued in the Db2 client');
+      L.push(setv('AS400_DATABASE', cfg.as400Database));
+    }
+    L.push(setv('AS400_USER', cfg.as400User));
+    passwordLine(L, 'AS400_PASSWORD', cfg.as400Password);
+    sqlFilesConfig(cfg, L, 'as400');
+    L.push('');
+  }
+
+  /* an empty password is not written at all: the script asks for it, and the logged
+     re-run inherits the answer instead of having it cleared by an empty set line */
+  function passwordLine(L, name, value) {
+    if (t(value)) {
+      L.push(setv(name, value));
+    } else {
+      L.push('REM ' + name + ' is left out on purpose - it is asked for at run time.');
+      L.push('REM set "' + name + '=..." here to run without the question.');
+    }
+  }
+
+  /* engine is the config key prefix: 'mssql' reads mssqlDir / mssqlFiles and writes MSSQL_... */
+  function sqlFilesConfig(cfg, L, engine) {
+    var prefix = engine.toUpperCase();
+    var dir = cfg[engine + 'Dir'];
+    var files = parseKeep(cfg[engine + 'Files']);
+    L.push((sqlDirInZip(cfg, dir) ? setvRaw : setv)(prefix + '_DIR', sqlDirOf(cfg, dir)));
+    L.push(setv(prefix + '_FILES', String(files.length)));
+    files.forEach(function (f, i) {
+      L.push(isAbsolute(f)
+        ? setv(prefix + '_FILE' + (i + 1), f)
+        : setvRaw(prefix + '_FILE' + (i + 1), '%' + prefix + '_DIR%\\' + escSet(trimBothSlash(f))));
+    });
   }
 
   function center(text, width) {
@@ -222,6 +340,25 @@
     L.push('set /a _WAITPING=%STOP_WAIT_SECONDS%+1');
     L.push('');
 
+    /* ---- database passwords ---- */
+    var asks = [];
+    if (cfg.mssqlEnabled && cfg.mssqlAuth === 'sql' && !t(cfg.mssqlPassword)) {
+      asks.push(['MSSQL_PASSWORD', 'SQL Server password for ' + (t(cfg.mssqlUser) || 'the user')]);
+    }
+    if (cfg.as400Enabled && !t(cfg.as400Password)) {
+      asks.push(['AS400_PASSWORD', 'AS400 password for ' + (t(cfg.as400User) || 'the user')]);
+    }
+    if (asks.length) {
+      L.push(RULE);
+      L.push('REM  Database passwords that are not stored in this file');
+      L.push('REM  asked once, before logging starts, so the answer never lands in the log');
+      L.push(RULE);
+      asks.forEach(function (a) {
+        L.push('if not defined ' + a[0] + ' call :AskPassword ' + a[0] + ' "' + psPrompt(a[1]) + '"');
+      });
+      L.push('');
+    }
+
     /* ---- logging ---- */
     L.push(RULE);
     L.push('REM  Logging - re-runs this script once, piped through Tee-Object');
@@ -251,6 +388,12 @@
     L.push('echo   Computer   : %COMPUTERNAME%');
     L.push('echo   Projects   : %PROJECT_COUNT%');
     L.push('echo   Mode       : %DEPLOY_MODE%');
+    if (anySql(cfg)) {
+      var engines = [];
+      if (cfg.mssqlEnabled) engines.push('SQL Server');
+      if (cfg.as400Enabled) engines.push('AS400');
+      L.push('echo   Database   : ' + engines.join(', '));
+    }
     L.push('echo.');
     L.push('');
 
@@ -300,9 +443,23 @@
     });
     L.push('');
 
-    /* ---- steps 3..5 ---- */
+    var when = anySql(cfg) ? sqlWhen(cfg) : '';
+    var step = 3;
+
+    /* ---- database scripts, before IIS is touched ---- */
+    if (when === 'before') {
+      L.push(RULE);
+      L.push('REM  Step ' + step + ' - Database scripts');
+      L.push(RULE);
+      L.push('call :Section "Step ' + (step++) + ' - Running the database scripts"');
+      L.push('call :RunDatabase');
+      L.push('if "%SQL_STOP_ON_ERROR%"=="1" if "!SQL_FAILED!"=="1" goto :SqlFailed');
+      L.push('');
+    }
+
+    /* ---- stop, back up, copy, start ---- */
     L.push(RULE);
-    L.push('REM  Step 3 - Stop, back up, copy, start');
+    L.push('REM  Step ' + step + ' - Stop, back up, copy, start');
     L.push(RULE);
     L.push('if /I "%DEPLOY_MODE%"=="sequential" (');
     L.push('    for /L %%p in (1,1,%PROJECT_COUNT%) do (');
@@ -313,16 +470,36 @@
     L.push('        call :StartProject %%p');
     L.push('    )');
     L.push(') else (');
-    L.push('    call :Section "Step 3 - Stopping IIS"');
+    L.push('    call :Section "Step ' + (step++) + ' - Stopping IIS"');
     L.push('    for /L %%p in (1,1,%PROJECT_COUNT%) do call :StopProject %%p');
-    L.push('    call :Section "Step 4 - Backing up the current files"');
-    L.push('    for /L %%p in (1,1,%PROJECT_COUNT%) do call :BackupProject %%p');
-    L.push('    call :Section "Step 5 - Copying the new files"');
-    L.push('    for /L %%p in (1,1,%PROJECT_COUNT%) do call :CopyProject %%p');
-    L.push('    call :Section "Step 6 - Starting IIS"');
+    if (when === 'stopped') {
+      L.push('    call :Section "Step ' + (step++) + ' - Running the database scripts"');
+      L.push('    call :RunDatabase');
+      L.push('    REM a failed script leaves the old files in place, IIS is started again below');
+      L.push('    if "%SQL_STOP_ON_ERROR%"=="1" if "!SQL_FAILED!"=="1" set "SKIP_COPY=1"');
+    }
+    var guard = when === 'stopped' ? 'if not defined SKIP_COPY ' : '';
+    L.push('    call :Section "Step ' + (step++) + ' - Backing up the current files"');
+    L.push('    ' + guard + 'for /L %%p in (1,1,%PROJECT_COUNT%) do call :BackupProject %%p');
+    L.push('    call :Section "Step ' + (step++) + ' - Copying the new files"');
+    if (when === 'stopped') {
+      L.push('    if defined SKIP_COPY echo   Skipped: a database script failed, the current files stay in place.');
+    }
+    L.push('    ' + guard + 'for /L %%p in (1,1,%PROJECT_COUNT%) do call :CopyProject %%p');
+    L.push('    call :Section "Step ' + (step++) + ' - Starting IIS"');
     L.push('    for /L %%p in (1,1,%PROJECT_COUNT%) do call :StartProject %%p');
     L.push(')');
     L.push('');
+
+    /* ---- database scripts, once the sites run the new version ---- */
+    if (when === 'after') {
+      L.push(RULE);
+      L.push('REM  Database scripts');
+      L.push(RULE);
+      L.push('call :Section "Running the database scripts"');
+      L.push('call :RunDatabase');
+      L.push('');
+    }
 
     /* ---- retention ---- */
     L.push(RULE);
@@ -361,8 +538,20 @@
     L.push('if "%PAUSE_AT_END%"=="1" if /I not "%~1"=="--logged" pause');
     L.push('exit /b 1');
     L.push('');
+    if (when === 'before') {
+      L.push(':SqlFailed');
+      L.push('call :Section "DEPLOYMENT ABORTED"');
+      L.push('echo   A database script failed. IIS was not stopped and no files were copied.');
+      L.push('echo   Check the database: statements that ran before the failure are not undone.');
+      L.push('echo.');
+      L.push('if "%LOG_ENABLED%"=="1" > "%LOG_DIR%\\%SCRIPT_ID%.rc" echo 1');
+      L.push('if "%PAUSE_AT_END%"=="1" if /I not "%~1"=="--logged" pause');
+      L.push('exit /b 1');
+      L.push('');
+    }
 
     subroutines(L);
+    if (anySql(cfg)) sqlSubroutines(cfg, L);
 
     return L.join(CRLF) + CRLF;
   }
@@ -700,6 +889,223 @@
     L.push('');
   }
 
+  /* the prompt text travels as a quoted batch argument into a single-quoted PowerShell string */
+  function psPrompt(s) { return t(s).replace(/["'%!^`$]/g, ''); }
+
+  /* ---------------------------------------------------------------- */
+  /* the AS400 ODBC runner, written next to the exclude lists           */
+  /* ---------------------------------------------------------------- */
+  /* Flat, like the unzip helper: every line goes through  echo . The file is split into
+     statements on a ; at the end of a line, and -- comment lines are dropped, which is the
+     shape of a script saved from ACS Run SQL Scripts. */
+  function as400Ps1() {
+    return [
+      'param([string]$File)',
+      '$cs = "Driver={" + $env:AS400_DRIVER + "};System=" + $env:AS400_SYSTEM + ";Uid=" + $env:AS400_USER + ";Pwd={" + $env:AS400_PASSWORD + "};"',
+      'if ($env:AS400_LIBRARY) { $cs += "DBQ=" + $env:AS400_LIBRARY + ";" }',
+      '$text = [IO.File]::ReadAllText($File)',
+      '$lines = $text -split "`r?`n" | Where-Object { $_.Trim() -notmatch "^--" }',
+      '$statements = @(($lines -join "`n") -split ";\\s*(?:`n|$)" | ForEach-Object { $_.Trim() } | Where-Object { $_ })',
+      '$cn = New-Object System.Data.Odbc.OdbcConnection $cs',
+      '$n = 0',
+      'try {',
+      '$cn.Open()',
+      'foreach ($s in $statements) {',
+      '$n++',
+      '$cmd = $cn.CreateCommand()',
+      '$cmd.CommandText = $s',
+      '[void]$cmd.ExecuteNonQuery()',
+      '}',
+      '} catch {',
+      'if ($n -eq 0) { Write-Host ("      could not connect: " + $_.Exception.Message) }',
+      'else { Write-Host ("      statement " + $n + " of " + $statements.Count + " failed: " + $_.Exception.Message) }',
+      '$cn.Close()',
+      'exit 1',
+      '}',
+      '$cn.Close()',
+      'Write-Host ("      " + $n + " statements executed")',
+      'exit 0'
+    ];
+  }
+
+  function sqlSubroutines(cfg, L) {
+    L.push(RULE);
+    L.push('REM  Database subroutines');
+    L.push(RULE);
+    L.push('');
+
+    /* ---- AskPassword ---- */
+    L.push(':AskPassword');
+    L.push('REM Read-Host writes the question to the console and keeps the typing hidden');
+    L.push('set "_ASKVAR=%~1"');
+    L.push('for /f "usebackq delims=" %%p in (`powershell -NoProfile -Command "$s = Read-Host -AsSecureString \'%~2\'; [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))"`) do set "%_ASKVAR%=%%p"');
+    L.push('goto :EOF');
+    L.push('');
+
+    /* ---- RunDatabase ---- */
+    L.push(':RunDatabase');
+    L.push('set "SQL_FAILED=0"');
+    L.push('set "SKIP_COPY="');
+    if (cfg.mssqlEnabled) {
+      L.push('if "%MSSQL_ENABLED%"=="1" (');
+      L.push('    call :RunSqlServer');
+      L.push('    if not "!_SQLRC!"=="0" (');
+      L.push('        set "SQL_FAILED=1"');
+      L.push('        set /a ERRORS+=1');
+      L.push('    )');
+      L.push(')');
+    }
+    if (cfg.as400Enabled) {
+      if (cfg.mssqlEnabled) {
+        L.push('if "%AS400_ENABLED%"=="1" if "%SQL_STOP_ON_ERROR%"=="1" if "!SQL_FAILED!"=="1" (');
+        L.push('    echo.');
+        L.push('    echo   [AS400] skipped, the SQL Server scripts failed.');
+        L.push('    goto :EOF');
+        L.push(')');
+      }
+      L.push('if "%AS400_ENABLED%"=="1" (');
+      L.push('    call :RunAs400');
+      L.push('    if not "!_SQLRC!"=="0" (');
+      L.push('        set "SQL_FAILED=1"');
+      L.push('        set /a ERRORS+=1');
+      L.push('    )');
+      L.push(')');
+    }
+    L.push('goto :EOF');
+    L.push('');
+
+    /* ---- SQL Server ---- */
+    if (cfg.mssqlEnabled) {
+      L.push(':RunSqlServer');
+      L.push('set "_SQLRC=0"');
+      L.push('echo.');
+      L.push('echo   [SQL Server] !MSSQL_DATABASE! on !MSSQL_SERVER!, with %MSSQL_TOOL%');
+      L.push('REM sqlcmd reads the password from SQLCMDPASSWORD, so it never shows on a command line');
+      L.push('if "%MSSQL_AUTH%"=="sql" set "SQLCMDPASSWORD=!MSSQL_PASSWORD!"');
+      L.push('set "_TRUST="');
+      L.push('if "%MSSQL_TRUST_CERT%"=="1" set "_TRUST=-C"');
+      sqlFileLoop(L, 'MSSQL', 'SqlServerOne');
+      L.push('set "SQLCMDPASSWORD="');
+      L.push('goto :EOF');
+      L.push('');
+
+      L.push(':SqlServerOne');
+      sqlOneHead(L);
+      L.push('if /I "%MSSQL_TOOL%"=="invoke-sqlcmd" (');
+      L.push('    set "_SQLFILE=!_F!"');
+      L.push('    powershell -NoProfile -Command "try { Import-Module SqlServer -ErrorAction SilentlyContinue; $p = @{ ServerInstance = $env:MSSQL_SERVER; Database = $env:MSSQL_DATABASE; InputFile = $env:_SQLFILE; AbortOnError = $true; ErrorAction = \'Stop\' }; if ($env:MSSQL_AUTH -eq \'sql\') { $p.Username = $env:MSSQL_USER; $p.Password = $env:MSSQL_PASSWORD }; if ($env:MSSQL_TRUST_CERT -eq \'1\') { $p.TrustServerCertificate = $true }; Invoke-Sqlcmd @p | Out-Host; exit 0 } catch { Write-Host (\'      \' + $_.Exception.Message); exit 1 }"');
+      L.push(') else if "%MSSQL_AUTH%"=="sql" (');
+      L.push('    "%MSSQL_SQLCMD%" -S "!MSSQL_SERVER!" -d "!MSSQL_DATABASE!" -U "!MSSQL_USER!" !_TRUST! -b -I -f 65001 -i "!_F!"');
+      L.push(') else (');
+      L.push('    "%MSSQL_SQLCMD%" -S "!MSSQL_SERVER!" -d "!MSSQL_DATABASE!" -E !_TRUST! -b -I -f 65001 -i "!_F!"');
+      L.push(')');
+      sqlOneTail(L);
+    }
+
+    /* ---- AS400 ---- */
+    if (cfg.as400Enabled) {
+      var db2 = as400Tool(cfg) === 'db2';
+      L.push(':RunAs400');
+      L.push('set "_SQLRC=0"');
+      L.push('echo.');
+      if (db2) {
+        L.push('echo   [AS400] !AS400_DATABASE!, with the Db2 command line processor');
+        L.push('REM lets db2 run from this window instead of a db2cmd one; the connection lasts until terminate');
+        L.push('set "DB2CLP=**$$**"');
+        L.push('"%AS400_DB2%" connect to !AS400_DATABASE! user !AS400_USER! using !AS400_PASSWORD! >nul');
+        L.push('if !errorlevel! GEQ 4 (');
+        L.push('    echo      ERROR: could not connect to !AS400_DATABASE! as !AS400_USER!.');
+        L.push('    "%AS400_DB2%" terminate >nul 2>&1');
+        L.push('    set "_SQLRC=1"');
+        L.push('    goto :EOF');
+        L.push(')');
+      } else {
+        L.push('echo   [AS400] !AS400_SYSTEM!, with %AS400_DRIVER%');
+        L.push('if not exist "%EXCLUDE_DIR%" mkdir "%EXCLUDE_DIR%" >nul 2>&1');
+        L.push('call :WriteAs400Ps1');
+      }
+      sqlFileLoop(L, 'AS400', 'As400One');
+      if (db2) {
+        L.push('"%AS400_DB2%" connect reset >nul 2>&1');
+        L.push('"%AS400_DB2%" terminate >nul 2>&1');
+      } else {
+        L.push('if "!_SQLRC!"=="0" (');
+        L.push('    del "%EXCLUDE_DIR%\\as400sql.ps1" >nul 2>&1');
+        L.push(') else (');
+        L.push('    echo      the helper script was left at %EXCLUDE_DIR%\\as400sql.ps1');
+        L.push(')');
+      }
+      L.push('goto :EOF');
+      L.push('');
+
+      L.push(':As400One');
+      sqlOneHead(L);
+      if (db2) {
+        L.push('REM -t = statements end with ;   -v = echo them   -s = stop at the first error');
+        L.push('"%AS400_DB2%" -tvs -f "!_F!"');
+        L.push('REM db2 returns 1 for "no rows" and 2 for warnings, only 4 and up is an error');
+        L.push('if !errorlevel! GEQ 4 (cmd /c exit 1) else (cmd /c exit 0)');
+      } else {
+        L.push('powershell -NoProfile -ExecutionPolicy Bypass -File "%EXCLUDE_DIR%\\as400sql.ps1" "!_F!"');
+      }
+      sqlOneTail(L);
+
+      if (!db2) {
+        L.push(':WriteAs400Ps1');
+        L.push('setlocal disabledelayedexpansion');
+        as400Ps1().forEach(function (line, i) {
+          L.push((i === 0 ? '> ' : '>>') + '"%EXCLUDE_DIR%\\as400sql.ps1" echo ' + escEchoQuoted(line));
+        });
+        L.push('endlocal');
+        L.push('goto :EOF');
+        L.push('');
+      }
+    }
+  }
+
+  /* the listed files in order, or every *.sql in the folder by name when the list is empty */
+  function sqlFileLoop(L, prefix, label) {
+    L.push('if %' + prefix + '_FILES% GTR 0 (');
+    L.push('    for /L %%s in (1,1,%' + prefix + '_FILES%) do call :' + label + ' "!' + prefix + '_FILE%%s!"');
+    L.push(') else if not exist "!' + prefix + '_DIR!\\" (');
+    L.push('    echo      ERROR: script folder not found: !' + prefix + '_DIR!');
+    L.push('    set "_SQLRC=1"');
+    L.push(') else (');
+    L.push('    set "_SQLN=0"');
+    L.push('    for /f "delims=" %%f in (\'dir /b /a-d /on "%' + prefix + '_DIR%\\*.sql" 2^>nul\') do (');
+    L.push('        set /a _SQLN+=1');
+    L.push('        call :' + label + ' "!' + prefix + '_DIR!\\%%f"');
+    L.push('    )');
+    L.push('    if "!_SQLN!"=="0" echo      no .sql files in !' + prefix + '_DIR!');
+    L.push(')');
+  }
+
+  /* once one script fails, the rest are only listed: they usually build on it */
+  function sqlOneHead(L) {
+    L.push('set "_F=%~1"');
+    L.push('if not "!_SQLRC!"=="0" (');
+    L.push('    echo      skipped !_F!');
+    L.push('    goto :EOF');
+    L.push(')');
+    L.push('echo      !_F!');
+    L.push('if not exist "!_F!" (');
+    L.push('    echo      ERROR: script not found.');
+    L.push('    set "_SQLRC=1"');
+    L.push('    goto :EOF');
+    L.push(')');
+  }
+
+  function sqlOneTail(L) {
+    L.push('if !errorlevel! neq 0 (');
+    L.push('    echo      ERROR: the script failed.');
+    L.push('    set "_SQLRC=1"');
+    L.push(') else (');
+    L.push('    echo      ok.');
+    L.push(')');
+    L.push('goto :EOF');
+    L.push('');
+  }
+
   /* ---------------------------------------------------------------- */
   /* validation                                                       */
   /* ---------------------------------------------------------------- */
@@ -753,7 +1159,54 @@
       if (!parseKeep(p.keepText).length) warn(label + ': nothing on the do-not-replace list — appsettings.json and web.config will be overwritten.');
     });
 
+    validateSql({ cfg: cfg, err: err, warn: warn });
     return out;
+  }
+
+  /* ctx: { cfg, err, warn } - the configuration and the two ways to report on it */
+  function validateSql(ctx) {
+    if (!anySql(ctx.cfg)) return;
+    if (ctx.cfg.mssqlEnabled) validateMssql(ctx);
+    if (ctx.cfg.as400Enabled) validateAs400(ctx);
+    if (t(ctx.cfg.sqlWhen) === 'stopped' && ctx.cfg.deployMode === 'sequential') {
+      ctx.warn('Database scripts: "while IIS is stopped" needs every project down at once — with one project at a time they run before IIS is stopped.');
+    }
+  }
+
+  function validateMssql(ctx) {
+    var cfg = ctx.cfg;
+    if (!t(cfg.mssqlServer)) ctx.err('SQL Server: no server.');
+    if (!t(cfg.mssqlDatabase)) ctx.err('SQL Server: no database.');
+    if (cfg.mssqlAuth === 'sql' && !t(cfg.mssqlUser)) ctx.err('SQL Server: SQL login chosen but no user.');
+    if (cfg.mssqlAuth === 'sql') sqlPasswordIssue(ctx, 'SQL Server', cfg.mssqlPassword);
+    sqlFolderIssues(ctx, 'mssql', 'SQL Server');
+    if (mssqlTool(cfg) === 'invoke-sqlcmd') ctx.warn('SQL Server: Invoke-Sqlcmd needs the SqlServer PowerShell module on the target server (Install-Module SqlServer).');
+  }
+
+  function validateAs400(ctx) {
+    var cfg = ctx.cfg;
+    var odbc = as400Tool(cfg) === 'odbc';
+    if (odbc && !t(cfg.as400System)) ctx.err('AS400: no system (host name).');
+    if (!odbc && !t(cfg.as400Database)) ctx.err('AS400: no database alias for the Db2 command line processor.');
+    if (!t(cfg.as400User)) ctx.err('AS400: no user.');
+    sqlPasswordIssue(ctx, 'AS400', cfg.as400Password);
+    sqlFolderIssues(ctx, 'as400', 'AS400');
+  }
+
+  function sqlPasswordIssue(ctx, name, value) {
+    if (t(value)) ctx.warn(name + ': the password is written into the .bat in plain text, and kept in this browser and in exports. Leave it empty to be asked when the script runs.');
+  }
+
+  function sqlFolderIssues(ctx, engine, name) {
+    var dir = t(ctx.cfg[engine + 'Dir']);
+    var files = parseKeep(ctx.cfg[engine + 'Files']);
+    if (ctx.cfg.useZip) {
+      if (!dir && !files.length) ctx.warn(name + ': no folder and no list — every .sql file at the root of the zip is run.');
+    } else if (!dir && !files.some(isAbsolute)) {
+      ctx.err(name + ': no scripts folder.');
+    } else if (dir && !isAbsolute(dir)) {
+      ctx.err(name + ': the scripts folder must be an absolute path when no zip is used.');
+    }
   }
 
   /* ---------------------------------------------------------------- */
@@ -763,17 +1216,23 @@
     var projects = enabledProjects(cfg);
     var zipName = (t(cfg.zipSource).split(/[\\/]/).pop()) || 'release.zip';
     var lines = [zipName];
-    var inZip = projects.filter(function (p) { return p.sourceMode !== 'abs'; });
+    var rows = projects.filter(function (p) { return p.sourceMode !== 'abs'; }).map(function (p) {
+      return { sub: trimBothSlash(p.sourceSub), label: t(p.name) || 'project', details: targetsOf(p) };
+    });
+    if (cfg.mssqlEnabled && sqlDirInZip(cfg, cfg.mssqlDir)) {
+      rows.push({ sub: trimBothSlash(cfg.mssqlDir), label: 'SQL Server scripts', details: parseKeep(cfg.mssqlFiles) });
+    }
+    if (cfg.as400Enabled && sqlDirInZip(cfg, cfg.as400Dir)) {
+      rows.push({ sub: trimBothSlash(cfg.as400Dir), label: 'AS400 scripts', details: parseKeep(cfg.as400Files) });
+    }
 
-    if (!inZip.length) { lines.push('  (no project reads from the zip)'); return lines.join('\n'); }
+    if (!rows.length) { lines.push('  (nothing reads from the zip)'); return lines.join('\n'); }
 
-    inZip.forEach(function (p, i) {
-      var last = i === inZip.length - 1;
-      var sub = trimBothSlash(p.sourceSub) || '(root)';
-      lines.push((last ? ' └─ ' : ' ├─ ') + sub + '   →  ' + (t(p.name) || 'project'));
-      var targets = targetsOf(p);
-      targets.forEach(function (target) {
-        lines.push((last ? '    ' : ' │  ') + '     ' + target);
+    rows.forEach(function (r, i) {
+      var last = i === rows.length - 1;
+      lines.push((last ? ' └─ ' : ' ├─ ') + (r.sub || '(root)') + '   →  ' + r.label);
+      r.details.forEach(function (d) {
+        lines.push((last ? '    ' : ' │  ') + '     ' + d);
       });
     });
     return lines.join('\n');

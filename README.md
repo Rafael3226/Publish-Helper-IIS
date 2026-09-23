@@ -15,7 +15,7 @@ entry can be opened for editing, or have its `.bat` copied or downloaded straigh
 opening it. **Edit**, Import and New all move on to the full view. Loading something over a script
 with unsaved changes asks first. The view you were last in is remembered.
 
-In the **Full** view, the page is a stack of full-width steps — release package, projects, generated script —
+In the **Full** view, the page is a stack of full-width steps — release package, projects, database scripts, generated script —
 worked through one at a time: opening a step folds the previous one away, and clicking the open
 step closes it. A folded step still shows its headline, so the whole configuration stays readable
 at a glance: the zip and where it is unpacked, how many projects are included,
@@ -119,6 +119,33 @@ The first deployment of a new site therefore needs its `appsettings.json` placed
 The lists are written by the script itself at run time, so the `.bat` file needs no companion
 files. That is why the exclude folder **must not contain spaces**: `xcopy /EXCLUDE:` does not
 accept a quoted path. The app flags this.
+
+## Database scripts
+
+Step 3 runs SQL scripts as part of the deployment. It is optional: **SQL Server** and **AS400**
+each have their own switch, and with both off the generated script has no database code at all.
+
+| Engine | Tools |
+|--------|-------|
+| SQL Server | `sqlcmd` (default), or `Invoke-Sqlcmd` from the PowerShell SqlServer module. Windows authentication or a SQL login. |
+| AS400 (Db2 for i) | The IBM i Access ODBC Driver through PowerShell (default), or the Db2 command line processor `db2` with a catalogued database alias. |
+
+- **Which scripts** — a folder plus an optional list, run in the listed order. An empty list runs
+  every `*.sql` in the folder by name, so `01_…`, `02_…` naming is enough. A relative folder is
+  read from inside the zip, like a project origin.
+- **When** — before IIS is stopped (the default), while IIS is stopped (all-at-a-time order only;
+  one-at-a-time falls back to before), or after IIS is started again.
+- **Failures** — after a failed script the rest of that database's list is skipped. With
+  *A failed script stops the deployment* on, *before* aborts without touching IIS, *while stopped*
+  keeps the current files and starts IIS again, and *after* can only count the error. Statements
+  that already ran are not rolled back.
+- **Passwords** — leave the password empty and the script asks for it once, hidden, before the
+  log starts. A password that is filled in is written into the `.bat` in plain text, kept in
+  browser storage and in exports — the app flags it. A `!` in a typed password is lost to cmd's
+  delayed expansion.
+- The ODBC runner splits a file on a `;` at the end of a line and skips `--` comment lines — the
+  shape ACS *Run SQL Scripts* saves. Like the unzip helper, it is written next to the exclude lists
+  at run time and removed after a clean run.
 
 ## Presets
 

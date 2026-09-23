@@ -374,6 +374,15 @@
       : 'backups off');
     $('#sum-defaults').textContent = flags.join('  ·  ');
 
+    var db = [];
+    if (state.mssqlEnabled) db.push('SQL Server with ' + (state.mssqlTool || 'sqlcmd'));
+    if (state.as400Enabled) db.push('AS400 with ' + (state.as400Tool === 'db2' ? 'db2' : 'ODBC'));
+    if (db.length) {
+      db.push({ before: 'before IIS stops', stopped: 'while IIS is stopped', after: 'after IIS starts' }[state.sqlWhen]
+              || 'before IIS stops');
+    }
+    $('#sum-database').textContent = db.length ? db.join('  ·  ') : 'off';
+
     var total = state.projects.length;
     var on = state.projects.filter(function (p) { return p.enabled !== false; }).length;
     $('#sum-projects').textContent = on === total
@@ -435,6 +444,14 @@
     show('.cond-nozip', !state.useZip);
     show('.cond-backup', state.backupEnabled);
     show('.cond-log', state.logEnabled);
+    var sql = state.mssqlEnabled || state.as400Enabled;
+    show('.cond-sql', sql);
+    show('.cond-nosql', !sql);
+    show('.cond-mssql', state.mssqlEnabled);
+    show('.cond-mssql-sql', state.mssqlAuth === 'sql');
+    show('.cond-as400', state.as400Enabled);
+    show('.cond-as400-odbc', state.as400Tool !== 'db2');
+    show('.cond-as400-db2', state.as400Tool === 'db2');
   }
 
   function show(sel, on) {
