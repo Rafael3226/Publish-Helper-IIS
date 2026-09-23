@@ -9,18 +9,18 @@ them while protecting the configuration files, and starts the pool again.
 Open `index.html` in a browser. There is no build step, no server and no dependencies — plain
 HTML, CSS and JavaScript loaded straight from disk.
 
-The page is a stack of full-width steps — settings, release package, projects, generated script —
+The page is a stack of full-width steps — release package, projects, generated script —
 worked through one at a time: opening a step folds the previous one away, and clicking the open
 step closes it. A folded step still shows its headline, so the whole configuration stays readable
-at a glance: the deployment order, the zip and where it is unpacked, how many projects are included,
+at a glance: the zip and where it is unpacked, how many projects are included,
 how long the script is. The step you were last in is remembered for the next visit.
 
-Everything that rarely changes lives behind the **Defaults** button in the toolbar: auto-elevate,
-pause at the end and log writing, the file name, the title shown while running, the wait after
+Everything that rarely changes lives behind the **Defaults** button in the toolbar: the deployment
+order, auto-elevate, pause at the end and log writing, the file name, the title shown while running, the wait after
 stopping a pool, the log folder, and the whole backup and working-folder block. It is an ordinary part of the configuration — saved and exported with the
 rest — just kept out of the way until asked for, and it stays visible once opened.
 
-Projects inside step 4 are the exception — they fold independently, so several can be compared
+Projects inside step 2 are the exception — they fold independently, so several can be compared
 side by side, with **Expand** / **Collapse** in the step header acting on all of them at once.
 Each project card shows its pool, destination count and number of protected files while closed.
 

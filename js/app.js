@@ -31,17 +31,24 @@
     try { localStorage.setItem(STORE_CURRENT, JSON.stringify(state)); } catch (e) { /* quota */ }
   }
 
+  /* steps a remembered activeStep may still name: the script is its own always-open
+     column now, and the settings step folded into defaults */
+  var RETIRED_STEPS = { 'step-output': true, 'step-settings': true };
+
+  /* null means every step was closed on purpose and is kept */
+  function rememberedStep(step) {
+    return step === undefined || RETIRED_STEPS[step] ? 'step-package' : step;
+  }
+
   function loadUi() {
     try {
       var raw = JSON.parse(localStorage.getItem(STORE_UI) || '{}');
-      /* the script is its own always-open column now, never the accordion's active step */
-      if (raw.activeStep === 'step-output') raw.activeStep = 'step-settings';
       return {
-        activeStep: raw.activeStep === undefined ? 'step-settings' : raw.activeStep,
+        activeStep: rememberedStep(raw.activeStep),
         showDefaults: !!raw.showDefaults,
         projects: raw.projects || {}
       };
-    } catch (e) { return { activeStep: 'step-settings', showDefaults: false, projects: {} }; }
+    } catch (e) { return { activeStep: 'step-package', showDefaults: false, projects: {} }; }
   }
 
   function persistUi() {
@@ -292,15 +299,11 @@
   /* ---------------------------------------------------------------- */
   function renderSummaries(script) {
     var name = BatGenerator.slug(state.scriptName || state.title) + '.bat';
-    $('#sum-settings').textContent = state.deployMode === 'sequential'
-      ? 'one project at a time'
-      : 'all together';
-
     $('#sum-package').textContent = state.useZip
       ? ((state.zipSource || '').split(/[\\/]/).pop() || 'no zip chosen') + '  →  ' + (state.extractDir || '?')
       : 'no zip, absolute source folders';
 
-    var flags = [name];
+    var flags = [name, state.deployMode === 'sequential' ? 'one at a time' : 'all at a time'];
     if (state.autoElevate) flags.push('auto-elevate');
     if (state.pauseAtEnd) flags.push('pause');
     flags.push(state.logEnabled ? 'logged' : 'no log');
