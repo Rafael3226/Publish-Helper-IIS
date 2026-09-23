@@ -44,11 +44,15 @@
     try {
       var raw = JSON.parse(localStorage.getItem(STORE_UI) || '{}');
       return {
+        view: raw.view === 'full' ? 'full' : 'simple',
         activeStep: rememberedStep(raw.activeStep),
         showDefaults: !!raw.showDefaults,
+        dirty: !!raw.dirty,
         projects: raw.projects || {}
       };
-    } catch (e) { return { activeStep: 'step-package', showDefaults: false, projects: {} }; }
+    } catch (e) {
+      return { view: 'simple', activeStep: 'step-package', showDefaults: false, dirty: false, projects: {} };
+    }
   }
 
   function persistUi() {
@@ -88,6 +92,26 @@
     cfg = cfg || state;
     if (cfg.useZip) return;
     (cfg.projects || []).forEach(function (p) { p.sourceMode = 'abs'; });
+  }
+
+  /* the script being edited has changes that were never saved or exported */
+  function markDirty() {
+    if (ui.dirty) return;
+    ui.dirty = true;
+    persistUi();
+  }
+
+  /* loading something else throws the edited script away, so ask only when that loses work */
+  function confirmReplace(message) {
+    return !ui.dirty || confirm(message || 'Replace the script being edited? Unsaved changes are lost.');
+  }
+
+  function replaceState(cfg, savedName) {
+    state = migrate(cfg);
+    ui.dirty = false;
+    persistUi();
+    $('#savedSelect').value = savedName || '';
+    renderAll();
   }
 
   function newProject(over) {
@@ -367,6 +391,7 @@
 
   /* light refresh: no DOM rebuild, so the caret stays where it is */
   function touched() {
+    markDirty();
     applyConditionals();
     refreshProjectViews();
     persist();
@@ -455,6 +480,7 @@
       }
       default: return;
     }
+    markDirty();
     renderProjects();
     renderOutput();
     persist();
@@ -468,6 +494,7 @@
       keepText: last ? last.keepText : Presets.KEEP
     });
     ui.projects[p.uid] = true;
+    ui.dirty = true;
     state.projects.push(p);
     $('#step-projects').open = true;
     renderProjects();
@@ -485,20 +512,27 @@
   /* ---------------------------------------------------------------- */
   /* output actions                                                   */
   /* ---------------------------------------------------------------- */
-  $('#btnDownload').addEventListener('click', function () {
-    var name = BatGenerator.slug(state.scriptName || state.title) + '.bat';
-    download(name, BatGenerator.generate(state));
-    toast('Saved ' + name);
-  });
+  function scriptFileName(cfg) {
+    return BatGenerator.slug(cfg.scriptName || cfg.title) + '.bat';
+  }
 
-  $('#btnCopy').addEventListener('click', function () {
-    var text = BatGenerator.generate(state);
+  function downloadScript(cfg) {
+    var name = scriptFileName(cfg);
+    download(name, BatGenerator.generate(cfg));
+    toast('Saved ' + name);
+  }
+
+  function copyScript(cfg) {
+    var text = BatGenerator.generate(cfg);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(
         function () { toast('Script copied'); },
         function () { legacyCopy(text); });
     } else { legacyCopy(text); }
-  });
+  }
+
+  $('#btnDownload').addEventListener('click', function () { downloadScript(state); });
+  $('#btnCopy').addEventListener('click', function () { copyScript(state); });
 
   function legacyCopy(text) {
     var ta = document.createElement('textarea');
@@ -536,15 +570,19 @@
       sel.appendChild(opt);
     });
     sel.value = selected || '';
+    renderLibrarySaved();
+  }
+
+  function savedCopy(name) {
+    var cfg = savedConfigs()[name];
+    return cfg ? JSON.parse(JSON.stringify(cfg)) : null;
   }
 
   $('#savedSelect').addEventListener('change', function () {
     var name = this.value;
-    if (!name) return;
-    var all = savedConfigs();
-    if (!all[name]) return;
-    state = migrate(JSON.parse(JSON.stringify(all[name])));
-    renderAll();
+    var cfg = name && savedCopy(name);
+    if (!cfg) return;
+    replaceState(cfg, name);
     toast('Loaded "' + name + '"');
   });
 
@@ -555,19 +593,26 @@
     var all = savedConfigs();
     all[name] = JSON.parse(JSON.stringify(state));
     writeSaved(all);
+    ui.dirty = false;
+    persistUi();
     renderSavedList(name);
     toast('Saved "' + name + '"');
   });
 
-  $('#btnDelete').addEventListener('click', function () {
-    var name = $('#savedSelect').value;
-    if (!name) { toast('Pick a saved configuration first.'); return; }
+  function deleteSaved(name) {
     if (!confirm('Delete the saved configuration "' + name + '"?')) return;
     var all = savedConfigs();
     delete all[name];
     writeSaved(all);
-    renderSavedList('');
+    var current = $('#savedSelect').value;
+    renderSavedList(current === name ? '' : current);
     toast('Deleted "' + name + '"');
+  }
+
+  $('#btnDelete').addEventListener('click', function () {
+    var name = $('#savedSelect').value;
+    if (!name) { toast('Pick a saved configuration first.'); return; }
+    deleteSaved(name);
   });
 
   /* ---------------------------------------------------------------- */
@@ -576,9 +621,17 @@
   $('#btnExportJson').addEventListener('click', function () {
     download(BatGenerator.slug(state.scriptName || state.title) + '.json',
       JSON.stringify(state, null, 2));
+    ui.dirty = false;
+    persistUi();
   });
 
-  $('#btnImport').addEventListener('click', function () { $('#fileImport').click(); });
+  function startImport() {
+    if (!confirmReplace()) return;
+    $('#fileImport').click();
+  }
+
+  $('#btnImport').addEventListener('click', startImport);
+  $('#libImport').addEventListener('click', startImport);
 
   $('#fileImport').addEventListener('change', function () {
     var file = this.files && this.files[0];
@@ -586,8 +639,8 @@
     var reader = new FileReader();
     reader.onload = function () {
       try {
-        state = migrate(JSON.parse(reader.result));
-        renderAll();
+        replaceState(JSON.parse(reader.result));
+        setView('full');
         toast('Imported ' + file.name);
       } catch (e) {
         toast('That file is not a valid configuration.');
@@ -597,12 +650,20 @@
     this.value = '';
   });
 
-  $('#btnNew').addEventListener('click', function () {
-    if (!confirm('Start a new empty script? Unsaved changes are lost.')) return;
-    state = migrate(Presets.list[0].build());
-    $('#savedSelect').value = '';
-    renderAll();
-  });
+  function startNew() {
+    if (!confirmReplace('Start a new empty script? Unsaved changes are lost.')) return;
+    replaceState(Presets.list[0].build());
+    setView('full');
+  }
+
+  $('#btnNew').addEventListener('click', startNew);
+  $('#libNew').addEventListener('click', startNew);
+
+  function loadPreset(preset) {
+    if (!confirmReplace('Load the preset "' + preset.label + '"? Unsaved changes are lost.')) return;
+    replaceState(preset.build());
+    setView('full');
+  }
 
   var menu = $('#presetMenu');
   Presets.list.forEach(function (preset) {
@@ -614,10 +675,7 @@
     b.appendChild(hint);
     b.addEventListener('click', function () {
       menu.hidden = true;
-      if (!confirm('Load the preset "' + preset.label + '"? Unsaved changes are lost.')) return;
-      state = migrate(preset.build());
-      $('#savedSelect').value = '';
-      renderAll();
+      loadPreset(preset);
     });
     menu.appendChild(b);
   });
@@ -640,6 +698,87 @@
 
   document.addEventListener('click', function () { menu.hidden = true; });
 
+
+  /* ---------------------------------------------------------------- */
+  /* views: simple (the library) and full (the editor)                */
+  /* ---------------------------------------------------------------- */
+  function setView(view) {
+    ui.view = view === 'full' ? 'full' : 'simple';
+    persistUi();
+    applyView();
+  }
+
+  function applyView() {
+    document.documentElement.setAttribute('data-view', ui.view);
+    $$('[data-view-choice]').forEach(function (b) {
+      var on = b.getAttribute('data-view-choice') === ui.view;
+      b.classList.toggle('primary', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
+  $$('[data-view-choice]').forEach(function (b) {
+    b.addEventListener('click', function () { setView(b.getAttribute('data-view-choice')); });
+  });
+
+  function libraryMeta(cfg, hint) {
+    var count = cfg.projects.length;
+    var meta = [scriptFileName(cfg), count + (count === 1 ? ' project' : ' projects')];
+    if (hint) meta.unshift(hint);
+    return meta.join('  ·  ');
+  }
+
+  /* one row of the library: { name, hint, get, onEdit, onDelete } —
+     `get` builds a fresh copy of the configuration every time it is called */
+  function libraryItem(item) {
+    var li = $('#libItemTemplate').content.firstElementChild.cloneNode(true);
+    $('.lib-name', li).textContent = item.name;
+    $('.lib-meta', li).textContent = libraryMeta(migrate(item.get()), item.hint);
+    $('[data-lib="edit"]', li).addEventListener('click', item.onEdit);
+    $('[data-lib="copy"]', li).addEventListener('click', function () { copyScript(migrate(item.get())); });
+    $('[data-lib="download"]', li).addEventListener('click', function () { downloadScript(migrate(item.get())); });
+    var del = $('[data-lib="delete"]', li);
+    if (item.onDelete) del.addEventListener('click', item.onDelete);
+    else del.remove();
+    return li;
+  }
+
+  /* the blank preset is what New does, so the list keeps the real starting points */
+  function renderLibraryPresets() {
+    var host = $('#libPresets');
+    host.innerHTML = '';
+    Presets.list.forEach(function (preset) {
+      if (preset.id === 'blank') return;
+      host.appendChild(libraryItem({
+        name: preset.label, hint: preset.hint, get: preset.build,
+        onEdit: function () { loadPreset(preset); }
+      }));
+    });
+  }
+
+  function openSaved(name) {
+    if (!confirmReplace('Open "' + name + '"? Unsaved changes are lost.')) return;
+    replaceState(savedCopy(name), name);
+    setView('full');
+    toast('Loaded "' + name + '"');
+  }
+
+  function renderLibrarySaved() {
+    var host = $('#libSaved');
+    var names = Object.keys(savedConfigs()).sort();
+    host.innerHTML = '';
+    names.forEach(function (name) {
+      host.appendChild(libraryItem({
+        name: name,
+        get: function () { return savedCopy(name); },
+        onEdit: function () { openSaved(name); },
+        onDelete: function () { deleteSaved(name); }
+      }));
+    });
+    $('#libSavedEmpty').hidden = names.length > 0;
+  }
+
+
   /* ---------------------------------------------------------------- */
   /* toast                                                            */
   /* ---------------------------------------------------------------- */
@@ -653,7 +792,9 @@
   }
 
   /* ---------------------------------------------------------------- */
+  renderLibraryPresets();
   renderSavedList('');
   renderAll();
+  applyView();
 
 })();

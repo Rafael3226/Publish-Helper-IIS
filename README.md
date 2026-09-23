@@ -9,7 +9,13 @@ them while protecting the configuration files, and starts the pool again.
 Open `index.html` in a browser. There is no build step, no server and no dependencies — plain
 HTML, CSS and JavaScript loaded straight from disk.
 
-The page is a stack of full-width steps — release package, projects, generated script —
+The **Simple** / **Full** switch in the top bar picks between two views. **Simple**, the default,
+is a short list: the presets, then **Import** and **New**, then the saved configurations. Each
+entry can be opened for editing, or have its `.bat` copied or downloaded straight away without
+opening it. **Edit**, Import and New all move on to the full view. Loading something over a script
+with unsaved changes asks first. The view you were last in is remembered.
+
+In the **Full** view, the page is a stack of full-width steps — release package, projects, generated script —
 worked through one at a time: opening a step folds the previous one away, and clicking the open
 step closes it. A folded step still shows its headline, so the whole configuration stays readable
 at a glance: the zip and where it is unpacked, how many projects are included,

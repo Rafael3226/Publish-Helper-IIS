@@ -11,6 +11,11 @@
     var t = localStorage.getItem('iis-publish-helper.theme');
     if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
   } catch (e) { /* storage blocked: follow the OS */ }
+  /* same for the view, so the editor never flashes before the simple list */
+  var v = 'simple';
+  try { if (JSON.parse(localStorage.getItem('iis-publish-helper.ui') || '{}').view === 'full') v = 'full'; }
+  catch (e) { /* storage blocked or unreadable: simple */ }
+  document.documentElement.setAttribute('data-view', v);
 </script>
 </head>
 <body>
@@ -22,10 +27,49 @@
       <h1>IIS Publish Helper</h1>
       <p class="sub">Build deployment scripts for IIS sites and app pools</p>
     </div>
+    <div class="view-switch" role="group" aria-label="View">
+      <button class="btn ghost" data-view-choice="simple" title="Pick a preset or saved configuration">Simple</button>
+      <button class="btn ghost" data-view-choice="full" title="Every setting of the script being edited">Full</button>
+    </div>
   </div>
 </header>
 
-<div class="shell">
+<!-- ------------------------------------------------- simple view -->
+<main id="library" class="library">
+  <section class="lib-section">
+    <h2 class="lib-title">Presets</h2>
+    <ul id="libPresets" class="lib-list lib-scroll"></ul>
+  </section>
+
+  <div class="lib-actions">
+    <button id="libImport" class="btn">Import</button>
+    <button id="libNew" class="btn primary">New</button>
+  </div>
+
+  <section class="lib-section">
+    <h2 class="lib-title">Configurations</h2>
+    <ul id="libSaved" class="lib-list"></ul>
+    <p id="libSavedEmpty" class="note">Nothing saved yet — open a preset, adjust it and use <strong>Save</strong>
+      in the full view.</p>
+  </section>
+</main>
+
+<template id="libItemTemplate">
+  <li class="lib-item">
+    <div class="lib-text">
+      <span class="lib-name"></span>
+      <span class="lib-meta"></span>
+    </div>
+    <span class="lib-tools">
+      <button class="btn tiny primary" data-lib="edit" title="Open it in the full view">Edit</button>
+      <button class="btn tiny" data-lib="copy" title="Copy the generated .bat to the clipboard">Copy</button>
+      <button class="btn tiny" data-lib="download" title="Download the generated .bat">Download</button>
+      <button class="icon danger" data-lib="delete" title="Delete this configuration">✕</button>
+    </span>
+  </li>
+</template>
+
+<div class="shell" id="editor">
 
 <aside class="sidebar">
   <nav class="side-actions">

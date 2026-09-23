@@ -80,6 +80,56 @@ code { font-family: var(--mono); font-size: .92em; background: var(--panel-2); p
 }
 .sub { margin: 0; font-size: 12px; color: var(--muted); }
 
+.view-switch { display: flex; margin-left: auto; }
+.view-switch .btn { border-radius: 0; margin-left: -1px; }
+.view-switch .btn:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+.view-switch .btn:last-child { border-radius: 0 6px 6px 0; }
+.view-switch .btn.primary, .view-switch .btn:hover { position: relative; z-index: 1; }
+
+/* ---------------------------------------------------- views */
+/* simple: the library alone; full: the rail and the editor */
+/* html[data-view] is set before first paint by the inline script in index.html */
+[data-view="simple"] .shell,
+[data-view="full"] .library { display: none; }
+[data-view="simple"] .topbar { padding-left: 0; }   /* no rail to clear */
+
+/* ---------------------------------------------------- library (simple view) */
+.library {
+  width: 100%; max-width: 860px; margin: 0 auto; padding: 18px 14px 28px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.lib-section {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden;
+}
+.lib-title {
+  margin: 0; padding: 11px 14px; font-size: 14px; font-weight: 600;
+  background: var(--head); border-bottom: 1px solid var(--line);
+}
+.lib-list { list-style: none; margin: 0; padding: 0; }
+.lib-scroll { max-height: min(46vh, 420px); overflow-y: auto; }
+.lib-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-bottom: 1px solid var(--line);
+}
+.lib-item:last-child { border-bottom: none; }
+.lib-item:hover { background: var(--panel-2); }
+.lib-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.lib-name { font-weight: 600; font-size: 13px; }
+.lib-meta {
+  color: var(--muted); font-size: 12px; font-family: var(--mono);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lib-tools { display: flex; align-items: center; gap: 6px; flex: none; }
+.lib-section .note { margin: 0; padding: 12px 14px; }
+.lib-actions { display: flex; gap: 8px; }
+.lib-actions .btn { flex: 1; padding: 9px 12px; }
+
+@media (max-width: 600px) {
+  .lib-item { flex-wrap: wrap; }
+  .lib-tools { width: 100%; }
+}
+
 /* ---------------------------------------------------- sidebar */
 .shell { display: flex; align-items: stretch; }
 
@@ -197,6 +247,8 @@ label > input, label > select, label > textarea, label > .withsuffix { margin-to
   body { display: flex; flex-direction: column; overflow: hidden; }
   .topbar { flex: none; }
   .shell { flex: 1; min-height: 0; }
+  .library { flex: 1; min-height: 0; overflow-y: auto; max-width: none;
+             padding-left: max(14px, calc(50% - 416px)); padding-right: max(14px, calc(50% - 416px)); }
   .content { min-height: 0; overflow: hidden; }
   .warnbar { flex: none; }
   .workspace {
