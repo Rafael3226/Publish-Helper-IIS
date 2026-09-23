@@ -122,6 +122,37 @@
       }
     },
     {
+      id: 'dicard-fat',
+      label: 'Di-Card FAT (4 applications)',
+      hint: 'From exports/deploy-dicard.json',
+      build: function () {
+        return base({
+          scriptName: 'deploy-dicard-fat',
+          title: 'Di-Card Deployment (FAT)',
+          zipSource: 'C:\\Users\\ruribe\\Desktop\\deploy\\DICARD_PUBLISH.zip',
+          extractDir: 'C:\\Publish\\DICARD_PUBLISH',
+          projects: [
+            project({
+              name: 'BackendAPI', sourceSub: 'DICARD_API', pool: 'DiCardAPI5',
+              targets: ['D:\\website\\edcard\\DiCardAPI5']
+            }),
+            project({
+              name: 'Frontend', sourceSub: 'DICARD_FRONTEND', pool: 'Edcard5',
+              targets: ['D:\\website\\edcard\\dicard5']
+            }),
+            project({
+              name: 'Portal', sourceSub: 'DICARD_PORTAL', pool: 'cep-portal5',
+              targets: ['D:\\website\\edcard\\cep-portal5']
+            }),
+            project({
+              name: 'Maintenance', sourceSub: 'DICARD_MAINTENANCE', pool: 'maint5',
+              targets: ['D:\\website\\edcard\\maint5']
+            })
+          ]
+        });
+      }
+    },
+    {
       id: 'actpol',
       label: 'ACTPOL Gateway (single API, local zip)',
       hint: 'From deploy-actpol-gateway.bat',

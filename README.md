@@ -111,7 +111,7 @@ accept a quoted path. The app flags this.
 ## Presets
 
 The Presets menu contains starting points taken from the scripts already in use — ACTFMS,
-Di-Card and the ACTPOL Gateway — so a new script can usually be built by editing one of them.
+Di-Card (plus its FAT environment) and the ACTPOL Gateway — so a new script can usually be built by editing one of them.
 
 ## Layout
 
