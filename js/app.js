@@ -713,8 +713,10 @@
 
   function loadPreset(preset) {
     if (!confirmReplace('Load the preset "' + preset.label + '"? Unsaved changes are lost.')) return;
-    replaceState(preset.build());
-    setView('full');
+    preset.get().then(function (cfg) {
+      replaceState(cfg);
+      setView('full');
+    }, function () { toast('Could not read presets/' + preset.file + '.'); });
   }
 
 
@@ -740,29 +742,34 @@
     b.addEventListener('click', function () { setView(b.getAttribute('data-view-choice')); });
   });
 
-  function libraryMeta(cfg, hint) {
+  function libraryMeta(cfg) {
     var count = cfg.projects.length;
-    var meta = [scriptFileName(cfg), count + (count === 1 ? ' project' : ' projects')];
-    if (hint) meta.unshift(hint);
-    return meta.join('  ·  ');
+    return [scriptFileName(cfg), count + (count === 1 ? ' project' : ' projects')].join('  ·  ');
   }
 
-  /* one row of the library: { name, hint, get, onEdit, onDelete } —
+  /* runs fn on a fresh copy from `get`, which may return the configuration or a promise of it */
+  function withConfig(item, fn) {
+    Promise.resolve().then(item.get).then(function (cfg) { fn(migrate(cfg)); },
+      function () { toast('Could not read "' + item.name + '".'); });
+  }
+
+  /* one row of the library: { name, meta, get, onEdit, onDelete } —
      `get` builds a fresh copy of the configuration every time it is called */
   function libraryItem(item) {
     var li = $('#libItemTemplate').content.firstElementChild.cloneNode(true);
     $('.lib-name', li).textContent = item.name;
-    $('.lib-meta', li).textContent = libraryMeta(migrate(item.get()), item.hint);
+    $('.lib-meta', li).textContent = item.meta;
     $('[data-lib="edit"]', li).addEventListener('click', item.onEdit);
-    $('[data-lib="copy"]', li).addEventListener('click', function () { copyScript(migrate(item.get())); });
-    $('[data-lib="download"]', li).addEventListener('click', function () { downloadScript(migrate(item.get())); });
+    $('[data-lib="copy"]', li).addEventListener('click', function () { withConfig(item, copyScript); });
+    $('[data-lib="download"]', li).addEventListener('click', function () { withConfig(item, downloadScript); });
     var del = $('[data-lib="delete"]', li);
     if (item.onDelete) del.addEventListener('click', item.onDelete);
     else del.remove();
     return li;
   }
 
-  /* filled from presets/ once they have loaded; until then the lists show presetStatus */
+  /* filled from presets/index.json; a preset's own file is read only when it is used,
+     so its row shows the hint from the index rather than the file name and project count */
   var presets = [];
   var presetStatus = 'Loading presets…';
 
@@ -778,7 +785,7 @@
     host.innerHTML = '';
     presets.forEach(function (preset) {
       host.appendChild(libraryItem({
-        name: preset.label, hint: preset.hint, get: preset.build,
+        name: preset.label, meta: preset.hint, get: preset.get,
         onEdit: function () { loadPreset(preset); }
       }));
     });
@@ -798,6 +805,7 @@
     names.forEach(function (name) {
       host.appendChild(libraryItem({
         name: name,
+        meta: libraryMeta(migrate(savedCopy(name))),
         get: function () { return savedCopy(name); },
         onEdit: function () { openSaved(name); },
         onDelete: function () { deleteSaved(name); }
@@ -838,7 +846,7 @@
     host.innerHTML = '';
     presets.forEach(function (preset) {
       host.appendChild(sideItem({
-        name: preset.label, meta: libraryMeta(migrate(preset.build())),
+        name: preset.label, meta: preset.hint,
         onOpen: function () { loadPreset(preset); }
       }));
     });
@@ -881,14 +889,9 @@
   renderAll();
   applyView();
 
-  function loadedStatus(list) {
-    if (list.failed.length) return 'Could not read ' + list.failed.join(', ') + ' in presets/.';
-    return list.length ? '' : 'presets/index.json lists no presets.';
-  }
-
   Presets.load().then(function (list) {
     presets = list;
-    presetStatus = loadedStatus(list);
+    presetStatus = list.length ? '' : 'presets/index.json lists no presets.';
   }, function () {
     /* browsers refuse fetch() on file:// pages, so this is the usual cause */
     presetStatus = location.protocol === 'file:'

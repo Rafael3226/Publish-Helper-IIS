@@ -156,7 +156,7 @@ each have their own switch, and with both off the generated script has no databa
 The Presets lists contain starting points taken from the scripts already in use — ACTFMS,
 Di-Card (plus its FAT environment) and the ACTPOL Gateway — so a new script can usually be built by editing one of them.
 
-They are loaded from `presets/` every time the page opens. Each file is a configuration in the
+They live in `presets/`, one file each. Each file is a configuration in the
 same shape **Export** writes, and `presets/index.json` lists them in display order — a browser cannot
 list a folder, so a file only shows up once it is named there:
 
@@ -168,7 +168,12 @@ list a folder, so a file only shows up once it is named there:
 
 To add one: build the script in the app, **Export** it, copy the file into `presets/` and add a line
 to `index.json`. Fields a file leaves out are filled in from the defaults in `js/presets.js`, so
-hand-written presets can stay short. A file that cannot be read is left out and named under the list.
+hand-written presets can stay short.
+
+Only `index.json` is read when the page opens, so the lists show each preset's label and hint. A
+preset's own file is fetched the first time it is used — **Edit**, **Copy** or **Download** — and kept
+for the rest of the visit. A file that cannot be read says so when it is used, and is tried again the
+next time.
 
 ## Hosting in IIS
 

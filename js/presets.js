@@ -80,7 +80,8 @@
 
   /* presets/index.json lists the files, in display order: [{ file, label, hint }].
      Each file is a configuration in the same shape Export writes, so an export can be
-     dropped into presets/ as it is. A browser cannot list a folder, hence the index. */
+     dropped into presets/ as it is. A browser cannot list a folder, hence the index.
+     Only the index is read up front; a preset's file waits until it is used. */
   var DIR = 'presets/';
 
   function getJson(url) {
@@ -90,31 +91,31 @@
     });
   }
 
-  /* resolves to [{ id, label, hint, build }]; a file that fails is left out and named in
-     `failed`, so one broken preset does not hide the others */
+  /* one entry of the index; its file is fetched the first time it is asked for, and a
+     failed fetch is tried again next time */
+  function lazyPreset(entry) {
+    var text = null;
+    return {
+      id: entry.file.replace(/\.json$/i, ''),
+      file: entry.file,
+      label: entry.label || entry.file,
+      hint: entry.hint || '',
+      /* resolves to a fresh copy every time: the app edits what it is given */
+      get: function () {
+        var ready = text !== null ? Promise.resolve()
+          : getJson(DIR + entry.file).then(function (cfg) { text = JSON.stringify(cfg); });
+        return ready.then(function () {
+          var copy = JSON.parse(text);
+          (copy.projects || []).forEach(function (p) { delete p.uid; });
+          return copy;
+        });
+      }
+    };
+  }
+
+  /* resolves to [{ id, file, label, hint, get }] from the index alone */
   function load() {
-    return getJson(DIR + 'index.json').then(function (index) {
-      return Promise.all(index.map(function (entry) {
-        return getJson(DIR + entry.file).then(function (cfg) {
-          var text = JSON.stringify(cfg);
-          return {
-            id: entry.file.replace(/\.json$/i, ''),
-            label: entry.label || entry.file,
-            hint: entry.hint || '',
-            /* a fresh copy every time: the app edits what it is given */
-            build: function () {
-              var copy = JSON.parse(text);
-              (copy.projects || []).forEach(function (p) { delete p.uid; });
-              return copy;
-            }
-          };
-        }, function () { return { failed: entry.file }; });
-      }));
-    }).then(function (results) {
-      var list = results.filter(function (r) { return !r.failed; });
-      list.failed = results.filter(function (r) { return r.failed; }).map(function (r) { return r.failed; });
-      return list;
-    });
+    return getJson(DIR + 'index.json').then(function (index) { return index.map(lazyPreset); });
   }
 
   global.Presets = { blank: blank, load: load, base: base, project: project, KEEP: KEEP };
