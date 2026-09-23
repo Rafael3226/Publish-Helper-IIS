@@ -6,8 +6,12 @@ them while protecting the configuration files, and starts the pool again.
 
 ## Running it
 
-Open `index.html` in a browser. There is no build step, no server and no dependencies — plain
-HTML, CSS and JavaScript loaded straight from disk.
+Serve the folder over http and open `index.html` — from IIS (see [Hosting in IIS](#hosting-in-iis)),
+or locally with any static server, for example `npx serve .` or VS Code's Live Server. There is no
+build step and there are no dependencies — plain HTML, CSS and JavaScript.
+
+Opening `index.html` straight from disk still works, but without the presets: browsers do not let a
+`file://` page read other files, so the Presets lists say so instead.
 
 The **Simple** / **Full** switch in the top bar picks between two views. **Simple**, the default,
 is a short list: the presets, then **Import** and **New**, then the saved configurations. Each
@@ -152,12 +156,56 @@ each have their own switch, and with both off the generated script has no databa
 The Presets lists contain starting points taken from the scripts already in use — ACTFMS,
 Di-Card (plus its FAT environment) and the ACTPOL Gateway — so a new script can usually be built by editing one of them.
 
+They are loaded from `presets/` every time the page opens. Each file is a configuration in the
+same shape **Export** writes, and `presets/index.json` lists them in display order — a browser cannot
+list a folder, so a file only shows up once it is named there:
+
+```json
+[
+  { "file": "actfms.json", "label": "ACTFMS (API + Web, two pools each)", "hint": "From deploy-fms.bat" }
+]
+```
+
+To add one: build the script in the app, **Export** it, copy the file into `presets/` and add a line
+to `index.json`. Fields a file leaves out are filled in from the defaults in `js/presets.js`, so
+hand-written presets can stay short. A file that cannot be read is left out and named under the list.
+
+## Hosting in IIS
+
+Copy `index.html`, `web.config`, `css`, `js` and `presets` to a folder on the server and point a
+site, application or virtual directory at it. Nothing runs on the server, so any application pool
+will do; a dedicated one can be set to *No Managed Code*. `web.config` only adds the `.json` file
+type, which IIS 8.5 and older do not serve on their own.
+
+## Hosting on Azure
+
+`deploy-azure.ps1` publishes the app to Azure Static Web Apps on the Free plan. It creates the
+resource group and the app on the first run, and on every run deploys only `index.html`, `css`,
+`js`, `presets` and the two files in `azure\`. It needs the az CLI (after `az login`) and Node.js.
+
+```powershell
+.\deploy-azure.ps1                                  # deploy or update
+.\deploy-azure.ps1 -Invite someone@acts-curacao.com # deploy and invite
+```
+
+The site sits behind a Microsoft login, and only invited accounts get in (role `deployer`). Each
+invitation prints a link that the person opens once, signed in with that account; the link expires
+after `-InviteHours` (a week by default). Anyone else who signs in sees `azure\403.html`. The
+routing rules are in `azure\staticwebapp.config.json`.
+
+Configurations stay in each browser's local storage, which is tied to the address the page is
+opened from — export them from a local copy and import them on the hosted one.
+
 ## Layout
 
 ```
 index.html        the page
 css/styles.css    styling
-js/presets.js     defaults and the starting points
+js/presets.js     defaults, and the loader for presets/
+presets/          the starting points, one exported configuration each, plus index.json
 js/generator.js   configuration  ->  .bat, plus the validation rules
 js/app.js         form state, rendering and local storage
+web.config        lets older IIS serve .json
+azure/            Static Web Apps login rules and the no-access page
+deploy-azure.ps1  publishes to Azure Static Web Apps
 ```

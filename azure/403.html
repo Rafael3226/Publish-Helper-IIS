@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>No access</title>
+<style>
+  :root { --bg: #0f1216; --panel: #161b22; --line: #2a323d; --text: #dfe6ee; --muted: #a3afbd; --accent: #4f9cf9; color-scheme: dark; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #eef1f5; --panel: #ffffff; --line: #dde3ea; --text: #1a2029; --muted: #667487; --accent: #1d6fdc; color-scheme: light; }
+  }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--text);
+         font: 15px/1.5 "Segoe UI", system-ui, sans-serif; padding: 0 16px; }
+  main { max-width: 420px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 24px 28px; }
+  h1 { font-size: 18px; margin: 0 0 8px; }
+  p { color: var(--muted); margin: 0 0 12px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>IIS Publish Helper — no access</h1>
+  <p>You are signed in, but this account has not been invited to the app. Ask the owner for an
+     invitation link, open it, then come back.</p>
+  <p><a href="/.auth/logout?post_logout_redirect_uri=/">Sign in with a different account</a></p>
+</main>
+</body>
+</html>

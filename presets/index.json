@@ -1,0 +1,22 @@
+[
+  {
+    "file": "actfms.json",
+    "label": "ACTFMS (API + Web, two pools each)",
+    "hint": "From deploy-fms.bat"
+  },
+  {
+    "file": "dicard.json",
+    "label": "Di-Card (4 applications)",
+    "hint": "From deploy-dicard.bat"
+  },
+  {
+    "file": "dicard-fat.json",
+    "label": "Di-Card FAT (4 applications)",
+    "hint": "From exports/deploy-dicard.json"
+  },
+  {
+    "file": "actpol.json",
+    "label": "ACTPOL Gateway (single API, local zip)",
+    "hint": "From deploy-actpol-gateway.bat"
+  }
+]

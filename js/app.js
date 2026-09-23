@@ -13,7 +13,7 @@
   var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
 
   var uidSeed = 1;
-  var state = load() || migrate(Presets.list[0].build());
+  var state = load() || migrate(Presets.blank());
   var ui = loadUi();
   var previewTimer = null;
 
@@ -704,7 +704,7 @@
 
   function startNew() {
     if (!confirmReplace('Start a new empty script? Unsaved changes are lost.')) return;
-    replaceState(Presets.list[0].build());
+    replaceState(Presets.blank());
     setView('full');
   }
 
@@ -762,12 +762,21 @@
     return li;
   }
 
-  /* the blank preset is what New does, so the list keeps the real starting points */
+  /* filled from presets/ once they have loaded; until then the lists show presetStatus */
+  var presets = [];
+  var presetStatus = 'Loading presets…';
+
+  function renderPresetStatus() {
+    ['#libPresetsNote', '#sidePresetsNote'].forEach(function (sel) {
+      $(sel).textContent = presetStatus;
+      $(sel).hidden = !presetStatus;
+    });
+  }
+
   function renderLibraryPresets() {
     var host = $('#libPresets');
     host.innerHTML = '';
-    Presets.list.forEach(function (preset) {
-      if (preset.id === 'blank') return;
+    presets.forEach(function (preset) {
       host.appendChild(libraryItem({
         name: preset.label, hint: preset.hint, get: preset.build,
         onEdit: function () { loadPreset(preset); }
@@ -827,8 +836,7 @@
   function renderSidePresets() {
     var host = $('#sidePresets');
     host.innerHTML = '';
-    Presets.list.forEach(function (preset) {
-      if (preset.id === 'blank') return;
+    presets.forEach(function (preset) {
       host.appendChild(sideItem({
         name: preset.label, meta: libraryMeta(migrate(preset.build())),
         onOpen: function () { loadPreset(preset); }
@@ -868,10 +876,28 @@
   }
 
   /* ---------------------------------------------------------------- */
-  renderLibraryPresets();
-  renderSidePresets();
+  renderPresetStatus();
   renderSaved();
   renderAll();
   applyView();
+
+  function loadedStatus(list) {
+    if (list.failed.length) return 'Could not read ' + list.failed.join(', ') + ' in presets/.';
+    return list.length ? '' : 'presets/index.json lists no presets.';
+  }
+
+  Presets.load().then(function (list) {
+    presets = list;
+    presetStatus = loadedStatus(list);
+  }, function () {
+    /* browsers refuse fetch() on file:// pages, so this is the usual cause */
+    presetStatus = location.protocol === 'file:'
+      ? 'Presets load from presets/ only when the page is served over http — open it through IIS or a local web server.'
+      : 'Could not read presets/index.json.';
+  }).then(function () {
+    renderLibraryPresets();
+    renderSidePresets();
+    renderPresetStatus();
+  });
 
 })();

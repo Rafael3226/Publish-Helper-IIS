@@ -1,7 +1,7 @@
 /* ------------------------------------------------------------------
- * presets.js - starting points taken from the deployment scripts that
- * are already in use, so a new script can be built by editing rather
- * than typing everything from scratch.
+ * presets.js - the defaults every configuration is filled in from, and
+ * the loader for the starting points in presets/*.json, taken from the
+ * deployment scripts already in use.
  * ------------------------------------------------------------------ */
 (function (global) {
   'use strict';
@@ -73,129 +73,50 @@
     return p;
   }
 
-  var PRESETS = [
-    {
-      id: 'blank',
-      label: 'Blank script',
-      hint: 'One empty project',
-      build: function () {
-        return base({ projects: [project({ name: 'API' })] });
-      }
-    },
-    {
-      id: 'actfms',
-      label: 'ACTFMS (API + Web, two pools each)',
-      hint: 'From deploy-fms.bat',
-      build: function () {
-        return base({
-          scriptName: 'deploy-actfms',
-          title: 'ACTFMS Deployment',
-          zipSource: '\\\\actsstorwvd.file.core.windows.net\\wvd-ase\\ACTFMSNEW_LAST_PUBLISH\\ACTFMSNEW_PUBLISH.zip',
-          extractDir: 'C:\\Publish\\ACTFMSNEW_PUBLISH',
-          projects: [
-            project({
-              name: 'MPSAPI', sourceSub: 'ACTFMS_API', pool: 'MPSAPI', site: 'MPSAPI',
-              targets: ['C:\\Team ACTFMS\\Web services\\MPSAPI']
-            }),
-            project({
-              name: 'MPSAPI_BES', sourceSub: 'ACTFMS_API', pool: 'MPSAPI_BES', site: 'MPSAPI_BES',
-              targets: ['C:\\Team ACTFMS\\Web services\\MPSAPI_BES']
-            }),
-            project({
-              name: 'MPSWEB', sourceSub: 'ACTFMS_ADMIN', pool: 'MPSWEB', site: 'MPSWEB',
-              targets: ['C:\\Team ACTFMS\\Web Applications\\MPSWEB']
-            }),
-            project({
-              name: 'MPSWEB_BES', sourceSub: 'ACTFMS_ADMIN', pool: 'MPSWEB_BES', site: 'MPSWEB_BES',
-              targets: ['C:\\Team ACTFMS\\Web Applications\\MPSWEB_BES']
-            })
-          ]
-        });
-      }
-    },
-    {
-      id: 'dicard',
-      label: 'Di-Card (4 applications)',
-      hint: 'From deploy-dicard.bat',
-      build: function () {
-        return base({
-          scriptName: 'deploy-dicard',
-          title: 'Di-Card Deployment',
-          zipSource: '\\\\actsstorwvd.file.core.windows.net\\wvd-ase\\DICARD_LAST_PUBLISH\\DICARD_PUBLISH.zip',
-          extractDir: 'C:\\Publish\\DICARD_PUBLISH',
-          projects: [
-            project({
-              name: 'BackendAPI', sourceSub: 'DICARD_API', pool: 'EDCARDBACKENDAPI', site: 'EDCARDBACKENDAPI',
-              targets: ['C:\\Team ACTBMS\\EDCARD BACKENDAPI']
-            }),
-            project({
-              name: 'Frontend', sourceSub: 'DICARD_FRONTEND', pool: 'EDCARDFRONTEND', site: 'EDCARDFRONTEND',
-              targets: ['C:\\Team ACTBMS\\EDCARD FRONTEND']
-            }),
-            project({
-              name: 'Portal', sourceSub: 'DICARD_PORTAL', pool: 'EDCARDPORTAL', site: 'EDCARDPORTAL',
-              targets: ['C:\\Team ACTBMS\\EDCARD PORTAL']
-            }),
-            project({
-              name: 'Maintenance', sourceSub: 'DICARD_MAINTENANCE', pool: 'EDCARDMAINTENANCE', site: 'EDCARDMAINTENANCE',
-              targets: ['C:\\Team ACTBMS\\EDCARD MAINTENANCE']
-            })
-          ]
-        });
-      }
-    },
-    {
-      id: 'dicard-fat',
-      label: 'Di-Card FAT (4 applications)',
-      hint: 'From exports/deploy-dicard.json',
-      build: function () {
-        return base({
-          scriptName: 'deploy-dicard-fat',
-          title: 'Di-Card Deployment (FAT)',
-          zipSource: 'C:\\Users\\ruribe\\Desktop\\deploy\\DICARD_PUBLISH.zip',
-          extractDir: 'C:\\Publish\\DICARD_PUBLISH',
-          projects: [
-            project({
-              name: 'BackendAPI', sourceSub: 'DICARD_API', pool: 'DiCardAPI5',
-              targets: ['D:\\website\\edcard\\DiCardAPI5']
-            }),
-            project({
-              name: 'Frontend', sourceSub: 'DICARD_FRONTEND', pool: 'Edcard5',
-              targets: ['D:\\website\\edcard\\dicard5']
-            }),
-            project({
-              name: 'Portal', sourceSub: 'DICARD_PORTAL', pool: 'cep-portal5',
-              targets: ['D:\\website\\edcard\\cep-portal5']
-            }),
-            project({
-              name: 'Maintenance', sourceSub: 'DICARD_MAINTENANCE', pool: 'maint5',
-              targets: ['D:\\website\\edcard\\maint5']
-            })
-          ]
-        });
-      }
-    },
-    {
-      id: 'actpol',
-      label: 'ACTPOL Gateway (single API, local zip)',
-      hint: 'From deploy-actpol-gateway.bat',
-      build: function () {
-        return base({
-          scriptName: 'deploy-actpol-gateway',
-          title: 'ACTPOL Gateway API Deployment',
-          zipSource: 'C:\\@publish\\input\\ACTPOLGatewayAPI_PUBLISH.zip',
-          extractDir: 'C:\\@publish\\input\\ACTPOLGatewayAPI_PUBLISH',
-          projects: [
-            project({
-              name: 'ACTPOLGatewayAPI', sourceSub: 'ACTS_API', pool: 'ACTPOLGatewayAPI', site: '',
-              targets: ['C:\\Team .NET\\Web services\\ACTPOLGatewayAPI']
-            })
-          ]
-        });
-      }
-    }
-  ];
+  /* what New starts from; the real starting points live in presets/ */
+  function blank() {
+    return base({ projects: [project({ name: 'API' })] });
+  }
 
-  global.Presets = { list: PRESETS, base: base, project: project, KEEP: KEEP };
+  /* presets/index.json lists the files, in display order: [{ file, label, hint }].
+     Each file is a configuration in the same shape Export writes, so an export can be
+     dropped into presets/ as it is. A browser cannot list a folder, hence the index. */
+  var DIR = 'presets/';
+
+  function getJson(url) {
+    return fetch(url, { cache: 'no-cache' }).then(function (res) {
+      if (!res.ok) throw new Error(url + ': HTTP ' + res.status);
+      return res.json();
+    });
+  }
+
+  /* resolves to [{ id, label, hint, build }]; a file that fails is left out and named in
+     `failed`, so one broken preset does not hide the others */
+  function load() {
+    return getJson(DIR + 'index.json').then(function (index) {
+      return Promise.all(index.map(function (entry) {
+        return getJson(DIR + entry.file).then(function (cfg) {
+          var text = JSON.stringify(cfg);
+          return {
+            id: entry.file.replace(/\.json$/i, ''),
+            label: entry.label || entry.file,
+            hint: entry.hint || '',
+            /* a fresh copy every time: the app edits what it is given */
+            build: function () {
+              var copy = JSON.parse(text);
+              (copy.projects || []).forEach(function (p) { delete p.uid; });
+              return copy;
+            }
+          };
+        }, function () { return { failed: entry.file }; });
+      }));
+    }).then(function (results) {
+      var list = results.filter(function (r) { return !r.failed; });
+      list.failed = results.filter(function (r) { return r.failed; }).map(function (r) { return r.failed; });
+      return list;
+    });
+  }
+
+  global.Presets = { blank: blank, load: load, base: base, project: project, KEEP: KEEP };
 
 })(window);
