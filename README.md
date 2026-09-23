@@ -13,7 +13,7 @@ build step and there are no dependencies — plain HTML, CSS and JavaScript.
 Opening `index.html` straight from disk still works, but without the presets: browsers do not let a
 `file://` page read other files, so the Presets lists say so instead.
 
-The **Simple** / **Full** switch in the top bar picks between two views. **Simple**, the default,
+The view button at the right of the top bar switches between two views. **Simple**, the default,
 is a short list: the presets, then **Import** and **New**, then the saved configurations. Each
 entry can be opened for editing, or have its `.bat` copied or downloaded straight away without
 opening it. **Edit**, Import and New all move on to the full view. Loading something over a script
@@ -38,7 +38,7 @@ The rail on the left is built from the same parts as the simple view. **Current 
 shows what is open, whether it was saved and whether it has unsaved changes, with **Save** and
 **Export** next to it. Below that come the **Presets**, **Import** / **New** and the saved
 **Configurations**. Clicking a row opens it, and the configuration currently open is highlighted.
-**View** at the bottom holds the **Defaults** toggle and the theme switch.
+**View** at the bottom holds the **Defaults** toggle. The theme button next to the view button in the top bar cycles System → Light → Dark.
 
 Configurations are kept in the browser's local storage. Use **Save** to name and keep several of
 them, and **Export** / **Import** to share one as JSON with a colleague or commit it next to the

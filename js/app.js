@@ -233,25 +233,25 @@
     return t === 'light' || t === 'dark' ? t : 'system';
   }
 
+  /* the top-bar button cycles system → light → dark; CSS picks its icon from html[data-theme] */
+  var THEME_NEXT = { system: 'light', light: 'dark', dark: 'system' };
+  var THEME_LABEL = { system: 'Follow the Windows setting', light: 'Light', dark: 'Dark' };
+
   function applyTheme(theme) {
     if (theme === 'light' || theme === 'dark') document.documentElement.setAttribute('data-theme', theme);
     else document.documentElement.removeAttribute('data-theme');
-    $$('[data-theme-choice]').forEach(function (b) {
-      var on = b.getAttribute('data-theme-choice') === theme;
-      b.classList.toggle('primary', on);
-      b.setAttribute('aria-pressed', on ? 'true' : 'false');
-    });
+    var label = 'Theme: ' + THEME_LABEL[theme] + ' — click for ' + THEME_LABEL[THEME_NEXT[theme]].toLowerCase();
+    $('#btnTheme').title = label;
+    $('#btnTheme').setAttribute('aria-label', label);
   }
 
-  $$('[data-theme-choice]').forEach(function (b) {
-    b.addEventListener('click', function () {
-      var theme = b.getAttribute('data-theme-choice');
-      applyTheme(theme);
-      try {
-        if (theme === 'system') localStorage.removeItem(STORE_THEME);
-        else localStorage.setItem(STORE_THEME, theme);
-      } catch (e) { /* storage blocked: applies for this visit only */ }
-    });
+  $('#btnTheme').addEventListener('click', function () {
+    var theme = THEME_NEXT[currentTheme()];
+    applyTheme(theme);
+    try {
+      if (theme === 'system') localStorage.removeItem(STORE_THEME);
+      else localStorage.setItem(STORE_THEME, theme);
+    } catch (e) { /* storage blocked: applies for this visit only */ }
   });
 
   applyTheme(currentTheme());
@@ -731,15 +731,16 @@
 
   function applyView() {
     document.documentElement.setAttribute('data-view', ui.view);
-    $$('[data-view-choice]').forEach(function (b) {
-      var on = b.getAttribute('data-view-choice') === ui.view;
-      b.classList.toggle('primary', on);
-      b.setAttribute('aria-pressed', on ? 'true' : 'false');
-    });
+    /* CSS picks the button's icon from html[data-view] */
+    var label = ui.view === 'full'
+      ? 'Full view: every setting of the script — click for the simple list'
+      : 'Simple view: presets and saved configurations — click for the full editor';
+    $('#btnView').title = label;
+    $('#btnView').setAttribute('aria-label', label);
   }
 
-  $$('[data-view-choice]').forEach(function (b) {
-    b.addEventListener('click', function () { setView(b.getAttribute('data-view-choice')); });
+  $('#btnView').addEventListener('click', function () {
+    setView(ui.view === 'full' ? 'simple' : 'full');
   });
 
   function libraryMeta(cfg) {

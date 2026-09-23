@@ -80,11 +80,30 @@ code { font-family: var(--mono); font-size: .92em; background: var(--panel-2); p
 }
 .sub { margin: 0; font-size: 12px; color: var(--muted); }
 
-.view-switch { display: flex; margin-left: auto; }
-.view-switch .btn { border-radius: 0; margin-left: -1px; }
-.view-switch .btn:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
-.view-switch .btn:last-child { border-radius: 0 6px 6px 0; }
-.view-switch .btn.primary, .view-switch .btn:hover { position: relative; z-index: 1; }
+/* icon-only toggles on the right: each shows the current setting, a click moves to the next */
+.nav-tools { display: flex; gap: 6px; margin-left: auto; }
+.nav-toggle {
+  width: 32px; height: 32px; padding: 0; flex: none;
+  display: grid; place-items: center;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--panel-2); color: var(--muted); cursor: pointer;
+}
+.nav-toggle:hover { color: var(--text); border-color: var(--accent); }
+.nav-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.nav-toggle svg {
+  display: none; width: 18px; height: 18px;
+  fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.nav-toggle circle[r="1"] { fill: currentColor; }
+/* the attributes are set before first paint, so the right icon never flickers */
+[data-view="simple"] #btnView .when-simple,
+[data-view="full"] #btnView .when-full,
+:root:not([data-theme]) #btnTheme .when-system,
+[data-theme="light"] #btnTheme .when-light,
+[data-theme="dark"] #btnTheme .when-dark { display: block; }
+/* a pinned theme or the full view are "on": tint them with the accent */
+[data-view="full"] #btnView,
+[data-theme] #btnTheme { color: var(--accent); }
 
 /* ---------------------------------------------------- views */
 /* simple: the library alone; full: the rail and the editor */
@@ -166,11 +185,6 @@ code { font-family: var(--mono); font-size: .92em; background: var(--panel-2); p
 .side-row { display: flex; gap: 6px; }
 .side-row .btn { flex: 1; }
 .side-btn { text-align: left; }
-.theme-switch { gap: 0; }
-.theme-switch .btn { padding-left: 0; padding-right: 0; border-radius: 0; margin-left: -1px; }
-.theme-switch .btn:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
-.theme-switch .btn:last-child { border-radius: 0 6px 6px 0; }
-.theme-switch .btn.primary, .theme-switch .btn:hover { position: relative; z-index: 1; }
 
 .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
