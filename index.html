@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>IIS Publish Helper</title>
 <link rel="stylesheet" href="css/styles.css">
+<script>
+  /* pin the saved theme before first paint, so the page never flashes the other palette */
+  try {
+    var t = localStorage.getItem('iis-publish-helper.theme');
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) { /* storage blocked: follow the OS */ }
+</script>
 </head>
 <body>
 
@@ -36,6 +43,15 @@
     <div class="side-group">
       <span class="side-label">Panels</span>
       <button id="btnDefaults" class="btn ghost side-btn" title="Show the rarely-changed values">Defaults</button>
+    </div>
+
+    <div class="side-group">
+      <span class="side-label">Theme</span>
+      <div class="side-row theme-switch" role="group" aria-label="Theme">
+        <button class="btn ghost" data-theme-choice="system" title="Follow the Windows setting">System</button>
+        <button class="btn ghost" data-theme-choice="light">Light</button>
+        <button class="btn ghost" data-theme-choice="dark">Dark</button>
+      </div>
     </div>
 
     <div class="side-group">

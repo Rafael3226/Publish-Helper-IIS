@@ -14,10 +14,12 @@
   --mono: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
   --wrap: 1700px;
   --side: 220px;
+  color-scheme: dark;   /* native controls and scrollbars follow the palette */
 }
 
+/* light palette: follows the OS unless the theme switch pins one via html[data-theme] */
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme="dark"]) {
     --bg: #eef1f5;
     --panel: #ffffff;
     --panel-2: #f5f7fa;
@@ -27,7 +29,20 @@
     --muted: #667487;
     --accent: #1d6fdc;
     --accent-2: #17559f;
+    color-scheme: light;
   }
+}
+:root[data-theme="light"] {
+  --bg: #eef1f5;
+  --panel: #ffffff;
+  --panel-2: #f5f7fa;
+  --head: #f7f9fc;
+  --line: #dde3ea;
+  --text: #1a2029;
+  --muted: #667487;
+  --accent: #1d6fdc;
+  --accent-2: #17559f;
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -84,6 +99,11 @@ code { font-family: var(--mono); font-size: .92em; background: var(--panel-2); p
 .side-row { display: flex; gap: 6px; }
 .side-row .btn { flex: 1; }
 .side-btn { text-align: left; }
+.theme-switch { gap: 0; }
+.theme-switch .btn { padding-left: 0; padding-right: 0; border-radius: 0; margin-left: -1px; }
+.theme-switch .btn:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+.theme-switch .btn:last-child { border-radius: 0 6px 6px 0; }
+.theme-switch .btn.primary, .theme-switch .btn:hover { position: relative; z-index: 1; }
 
 .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 

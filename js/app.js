@@ -7,6 +7,7 @@
   var STORE_CURRENT = 'iis-publish-helper.current';
   var STORE_SAVED = 'iis-publish-helper.saved';
   var STORE_UI = 'iis-publish-helper.ui';
+  var STORE_THEME = 'iis-publish-helper.theme';   /* also read by the inline script in index.html */
 
   var $ = function (sel, root) { return (root || document).querySelector(sel); };
   var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
@@ -158,6 +159,35 @@
     if (ui.showDefaults) $('#step-defaults').open = true;   /* the accordion folds the rest */
     persistUi();
   });
+
+  /* theme: 'system' follows the OS, 'light' / 'dark' pin it via html[data-theme] */
+  function currentTheme() {
+    var t = document.documentElement.getAttribute('data-theme');
+    return t === 'light' || t === 'dark' ? t : 'system';
+  }
+
+  function applyTheme(theme) {
+    if (theme === 'light' || theme === 'dark') document.documentElement.setAttribute('data-theme', theme);
+    else document.documentElement.removeAttribute('data-theme');
+    $$('[data-theme-choice]').forEach(function (b) {
+      var on = b.getAttribute('data-theme-choice') === theme;
+      b.classList.toggle('primary', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
+  $$('[data-theme-choice]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var theme = b.getAttribute('data-theme-choice');
+      applyTheme(theme);
+      try {
+        if (theme === 'system') localStorage.removeItem(STORE_THEME);
+        else localStorage.setItem(STORE_THEME, theme);
+      } catch (e) { /* storage blocked: applies for this visit only */ }
+    });
+  });
+
+  applyTheme(currentTheme());
 
   function setAllProjects(open) {
     $('#step-projects').open = true;
